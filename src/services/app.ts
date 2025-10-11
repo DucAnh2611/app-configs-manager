@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { AppRepository } from '../repositories';
 import { EAppConfigsUpdateType } from '../enums';
+import { APP_CONSTANTS } from '../constants';
 
 export class AppService {
   constructor(private readonly appRepository: AppRepository) {}
@@ -52,7 +53,10 @@ export class AppService {
         id: app.id,
       },
       {
-        configs: updateConfigs,
+        configs: {
+          ...APP_CONSTANTS.DEFAULT_CONFIGS,
+          ...updateConfigs,
+        },
       }
     );
 
@@ -98,7 +102,11 @@ export class AppService {
 
     const { code, name } = dto;
 
-    const saved = await this.appRepository.save({ code: this.safeCode(code), name });
+    const saved = await this.appRepository.save({
+      code: this.safeCode(code),
+      name,
+      configs: APP_CONSTANTS.DEFAULT_CONFIGS,
+    });
 
     return saved;
   }
@@ -109,7 +117,7 @@ export class AppService {
       throw new Error('Not exist!');
     }
 
-    const { id, code, name } = dto;
+    const { id, code = isExist.code, name = isExist.name } = dto;
 
     const isExistedCode = await this.getByCode(code);
     if (isExistedCode) {
@@ -148,6 +156,6 @@ export class AppService {
   }
 
   private safeCode(code: string) {
-    return code.replace(new RegExp(' '), '_').toUpperCase();
+    return code.replace(new RegExp(' '), '_').toUpperCase().trim();
   }
 }

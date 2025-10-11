@@ -15,8 +15,6 @@ import { ApiKeyRepository } from '../repositories';
 import { EApiKeyType, EAppConfigsUpdateType } from '../enums';
 
 export class ApiKeyService {
-  private readonly DEFAULT_JWT_SECRET: string = 'default';
-
   constructor(
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly appService: AppService
@@ -83,17 +81,6 @@ export class ApiKeyService {
 
     if (dto.type === EApiKeyType.THIRD_PARTY && !PUBLIC_KEY_LENGTH) {
       throw new Error("Public key length haven't configured!");
-    }
-
-    if (!JWT_SECRET_API_KEY) {
-      await this.appService.upConfig(app.code, {
-        mode: EAppConfigsUpdateType.SOFT,
-        configs: {
-          JWT_SECRET_API_KEY: this.DEFAULT_JWT_SECRET,
-        },
-      });
-
-      return this.generate(dto);
     }
 
     const saved = await this.apiKeyRepository.save({

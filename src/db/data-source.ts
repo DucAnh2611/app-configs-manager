@@ -10,7 +10,7 @@ export const AppDataSource = new DataSource({
   password: DATABASE_CONFIG.password,
   database: DATABASE_CONFIG.database,
   synchronize: false,
-  migrations: ['src/migrations/*.ts'],
+  migrations: ['**/migrations/*.js'],
   entities: [AppEntity, ApiKeyEntity],
   applicationName: 'app_config_node',
   poolSize: 5,

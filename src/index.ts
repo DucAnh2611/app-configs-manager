@@ -1,7 +1,6 @@
 import express from 'express';
 import { AppDataSource } from './db';
 import { ApiRoutes } from './routes/api';
-import { ValidateDto } from './middlewares';
 
 async function main() {
   const app = express();

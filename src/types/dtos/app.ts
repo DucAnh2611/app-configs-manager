@@ -31,11 +31,11 @@ export class DtoAppUpdate {
 
   @IsOptional()
   @IsString()
-  code: string;
+  code?: string;
 
   @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 }
 
 export class DtoAppDelete {
