@@ -9,7 +9,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "migration:generate": "node -e \"const args = process.argv.slice(1); const name = args.pop(); if (!name) { console.error('❌ Missing migration name'); process.exit(1); } const { execSync } = require('child_process'); execSync(`npx ts-node --esm ./node_modules/typeorm/cli.js migration:generate -d dist/db/data-source.ts dist/migrations/${name}`, { stdio: 'inherit' });\"",
+    "migration:generate": "node -e \"const args = process.argv.slice(1); const name = args.pop(); if (!name) { console.error('❌ Missing migration name'); process.exit(1); } const { execSync } = require('child_process'); execSync(`npx ts-node --esm ./node_modules/typeorm/cli.js migration:generate -d src/db/data-source.ts src/migrations/${name}`, { stdio: 'inherit' });\"",
     "migration:run": "npx ts-node --esm ./node_modules/typeorm/cli.js migration:run -d src/db/data-source.ts",
     "migration:revert": "npx ts-node --esm ./node_modules/typeorm/cli.js migration:revert -d src/db/data-source.ts",
     "dotenv:pull": "npx dotenv-vault@latest pull",

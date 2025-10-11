@@ -2,7 +2,13 @@ import { Command } from 'commander';
 import { ApiKeyService, AppService } from '../services';
 import { apiKeyRepository, appRepository } from '../repositories';
 import { printAppTable, buildCliCommand, ICliCommand, printGrid } from '../helpers';
-import { DtoApiKeyGenerate, DtoApiKeyList, DtoApiKeyReset, DtoApiKeyToggle } from '../types';
+import {
+  DtoApiKeyGenerate,
+  DtoApiKeyList,
+  DtoApiKeyReset,
+  DtoApiKeyToggle,
+  DtoApiKeyUpdate,
+} from '../types';
 import { EApiKeyType } from '../enums';
 
 const CommandPrefix = 'api_key';
@@ -62,7 +68,7 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
 
       printAppTable(list, [
         ['id', 'Id'],
-        ['key', 'Api Key'],
+        ['description', 'Description'],
         ['type', 'Api Type'],
         ['publicKey', 'Public Key'],
         ['active', 'Active'],
@@ -90,6 +96,27 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       }
 
       printGrid(reset, cols);
+    },
+  },
+  {
+    name: 'edit',
+    description: 'update api key',
+    options: [
+      { required: true, flags: '--code <code>', description: 'App code' },
+      { required: true, flags: '--id <id>', description: 'Api key id' },
+      { flags: '--description <description>', description: 'Api key length', default: '' },
+      { flags: '--isDelete [boolean]', description: 'Is Delete Api Key', default: false },
+    ],
+    action: async (opts: DtoApiKeyUpdate) => {
+      await apiKeyService.update(opts);
+
+      const cols: Array<[keyof DtoApiKeyUpdate, string]> = [
+        ['id', 'Id'],
+        ['description', 'Description'],
+        ['isDelete', 'Delete'],
+      ];
+
+      printGrid(opts, cols);
     },
   },
 ];

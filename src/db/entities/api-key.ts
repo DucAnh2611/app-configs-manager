@@ -13,6 +13,7 @@ export interface IApiKey {
   createdAt: Date;
   updatedAt: Date;
   revokedAt?: Date | null;
+  deletedAt: null;
   app?: IApp;
 }
 
@@ -64,6 +65,12 @@ export const ApiKeyEntity = new EntitySchema<IApiKey>({
     revokedAt: {
       type: 'timestamp with time zone',
       nullable: true,
+    },
+    deletedAt: {
+      type: 'timestamp with time zone',
+      nullable: true,
+      default: null,
+      deleteDate: true,
     },
   },
   relations: {

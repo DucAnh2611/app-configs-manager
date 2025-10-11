@@ -7,7 +7,7 @@ export const printAppTable = <T>(
   fields: Array<[keyof T, string] | keyof T>,
   slideStr: Array<keyof T> = []
 ) => {
-  const terminalWidth = process.stdout.columns ?? 120;
+  const terminalWidth = process.stdout.columns ?? 240;
   const COL_WIDTH = Math.floor(terminalWidth / fields.length) - 5;
   const colWidths = fields.map(() => COL_WIDTH);
 

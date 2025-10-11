@@ -7,6 +7,7 @@ import {
   DtoApiKeyList,
   DtoApiKeyReset,
   DtoApiKeyToggle,
+  DtoApiKeyUpdate,
   DtoApiKeyValidate,
   TJwtApiKeyPayload,
 } from '../types';
@@ -155,6 +156,31 @@ export class ApiKeyService {
         JWT_SECRET_API_KEY
       ),
     };
+  }
+
+  public async update(dto: DtoApiKeyUpdate) {
+    const apiKey = await this.getById(dto.id);
+    if (!apiKey) {
+      throw new Error('ApiKey not exist!');
+    }
+
+    const app = await this.appService.getByCode(dto.code);
+    if (!app) {
+      throw new Error('App not exist!');
+    }
+
+    if (dto.isDelete) {
+      await this.apiKeyRepository.softDelete({ id: dto.id });
+      return true;
+    }
+
+    const updateData = {
+      ...apiKey,
+      description: dto.description,
+    };
+
+    await this.apiKeyRepository.update({ id: dto.id }, updateData);
+    return true;
   }
 
   public async getById(id: string) {
