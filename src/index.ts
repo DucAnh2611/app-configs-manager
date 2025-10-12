@@ -1,6 +1,7 @@
 import express from 'express';
 import { AppDataSource } from './db';
 import { ApiRoutes } from './routes/api';
+import { connectRedis } from './libs';
 
 async function main() {
   const app = express();
@@ -9,6 +10,7 @@ async function main() {
   app.use(express.urlencoded({ extended: true }));
 
   await AppDataSource.initialize();
+  await connectRedis();
 
   app.get('/', (req, res) => {
     res.json({ message: 'App configurations is running 🚀' });

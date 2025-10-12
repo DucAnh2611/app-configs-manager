@@ -52,17 +52,25 @@ After being added to the team, set up your vault.
 4. Pull environment variables:  
 ```bash
 npx dotenv-vault@latest pull  
-```
+``` 
 
-5. Create file `.env.docker` if not exist from `.env` and change:  
-DATABASE_HOST="postgres" → DATABASE_HOST="localhost"  
-
-6. Build and start Docker:  
+5. Build and start Docker:  
 ```bash
 docker compose up --build  
 ```
 
-7. Set up CLI command to use in **Git Bash** without `--` (Window -> setup on Git Bash):
+6. Migration
+```bash
+npm run build
+npm run migration:run
+```
+
+7. Run dev
+```bash
+npm run dev
+```
+
+8. Set up CLI command to use in **Git Bash** without `--` (Window -> setup on Git Bash):
 ```bash
 chmod +x bin/app_config.js
 npm link

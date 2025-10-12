@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { ApiKeyService, AppService } from '../services';
+import { ApiKeyService, AppService, CacheService } from '../services';
 import { apiKeyRepository, appRepository } from '../repositories';
 import { printAppTable, buildCliCommand, ICliCommand, printGrid } from '../helpers';
 import {
@@ -122,7 +122,7 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
 ];
 
 export const registerApiKeyCommands = (program: Command) => {
-  const appService = new AppService(appRepository);
+  const appService = new AppService(appRepository, new CacheService());
   const apiKeyService = new ApiKeyService(apiKeyRepository, appService);
 
   buildCliCommand(Commands(apiKeyService), CommandPrefix, program);

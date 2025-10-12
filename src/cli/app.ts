@@ -1,8 +1,9 @@
 import { Command } from 'commander';
-import { AppService } from '../services';
+import { AppService, CacheService } from '../services';
 import { appRepository } from '../repositories';
 import { DtoAppCreate, DtoAppDetail, DtoAppUpdate } from '../types';
 import { printAppTable, buildCliCommand, ICliCommand } from '../helpers';
+import { IApp } from '../db';
 
 const CommandPrefix = 'app';
 
@@ -62,18 +63,20 @@ const Commands = (appService: AppService): ICliCommand[] => [
     options: [{ required: true, flags: '--id <id>', description: 'App ID' }],
     action: async (opts: DtoAppDetail) => {
       const detail = await appService.detail(opts);
-      if (!detail) {
-        console.log('✅ App detail:', detail);
-        return;
+
+      const data: IApp[] = [];
+
+      if (detail) {
+        data.push(detail);
       }
 
-      printAppTable([detail], ['id', 'code', 'name', 'createdAt', 'updatedAt']);
+      printAppTable(data, ['id', 'code', 'name', 'createdAt', 'updatedAt']);
     },
   },
 ];
 
 export const registerAppCommands = (program: Command) => {
-  const appService = new AppService(appRepository);
+  const appService = new AppService(appRepository, new CacheService());
 
   buildCliCommand(Commands(appService), CommandPrefix, program);
 };

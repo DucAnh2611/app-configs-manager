@@ -5,20 +5,27 @@ import { AppDataSource } from '../db';
 import { registerAppCommands } from './app';
 import chalk from 'chalk';
 import { registerApiKeyCommands } from './api-key';
+import { connectRedis } from '../libs';
 
-const program = new Command();
+const InitCli = async () => {
+  const program = new Command();
 
-program.name('app_configs').description('CLI to manage Apps and API Keys').version('1.0.0');
+  await connectRedis();
 
-registerAppCommands(program);
-registerApiKeyCommands(program);
+  program.name('app_configs').description('CLI to manage Apps and API Keys').version('1.0.0');
 
-AppDataSource.initialize()
-  .then(async () => {
-    await program.parseAsync(process.argv);
-    await AppDataSource.destroy();
-  })
-  .catch((err) => {
-    console.error(chalk.red('❌ Error:'), err);
-    process.exit(1);
-  });
+  registerAppCommands(program);
+  registerApiKeyCommands(program);
+
+  AppDataSource.initialize()
+    .then(async () => {
+      await program.parseAsync(process.argv);
+      await AppDataSource.destroy();
+    })
+    .catch((err) => {
+      console.error(chalk.red('❌ Error:'), err);
+      process.exit(1);
+    });
+};
+
+InitCli();

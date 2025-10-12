@@ -10,9 +10,13 @@ import {
 import { AppRepository } from '../repositories';
 import { EAppConfigsUpdateType } from '../enums';
 import { APP_CONSTANTS } from '../constants';
+import { CacheService } from './cache';
 
 export class AppService {
-  constructor(private readonly appRepository: AppRepository) {}
+  constructor(
+    private readonly appRepository: AppRepository,
+    private readonly cacheService: CacheService
+  ) {}
 
   public async getConfigs(dto: DtoAppGetConfigs) {
     const app = await this.getByCode(dto.code);
@@ -70,28 +74,31 @@ export class AppService {
   }
 
   public async detail(dto: DtoAppDetail) {
+    const isCached = await this.cacheService.get(`${dto.id}_DETAIL_APP`);
+    if (isCached) return isCached;
+
     const isExist = await this.getById(dto.id);
     if (!isExist) {
       throw new Error('Not exist!');
     }
 
-    return this.appRepository.findOne({
+    const detail = await this.appRepository.findOne({
       where: {
         id: dto.id,
-      },
-      relations: {
-        configs: true,
       },
       select: {
         id: true,
         code: true,
         name: true,
+        configs: false,
         createdAt: true,
         updatedAt: true,
-        configs: false,
-        apiKeys: false,
       },
     });
+
+    await this.cacheService.set(`${dto.id}_DETAIL_APP`, detail);
+
+    return detail;
   }
 
   public async create(dto: DtoAppCreate) {
