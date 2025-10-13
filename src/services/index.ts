@@ -28,3 +28,5 @@ export const getServices = () => {
 
   return services;
 };
+
+export type { AppService, ApiKeyService, CacheService };

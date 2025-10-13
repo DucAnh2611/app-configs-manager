@@ -1,6 +1,5 @@
 import { Command } from 'commander';
-import { AppService, CacheService } from '../services';
-import { appRepository } from '../repositories';
+import { AppService, getServices } from '../services';
 import { DtoAppCreate, DtoAppDetail, DtoAppUpdate } from '../types';
 import { printAppTable, buildCliCommand, ICliCommand } from '../helpers';
 import { IApp } from '../db';
@@ -76,7 +75,7 @@ const Commands = (appService: AppService): ICliCommand[] => [
 ];
 
 export const registerAppCommands = (program: Command) => {
-  const appService = new AppService(appRepository, new CacheService());
+  const { appService } = getServices();
 
   buildCliCommand(Commands(appService), CommandPrefix, program);
 };

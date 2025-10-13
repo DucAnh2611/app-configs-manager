@@ -6,11 +6,13 @@ import { registerAppCommands } from './app';
 import chalk from 'chalk';
 import { registerApiKeyCommands } from './api-key';
 import { connectRedis } from '../libs';
+import { initControllers } from '../controllers';
 
 const InitCli = async () => {
   const program = new Command();
 
   await connectRedis();
+  initControllers();
 
   program.name('app_configs').description('CLI to manage Apps and API Keys').version('1.0.0');
 

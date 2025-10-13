@@ -1,6 +1,4 @@
 import { Command } from 'commander';
-import { ApiKeyService, AppService, CacheService } from '../services';
-import { apiKeyRepository, appRepository } from '../repositories';
 import { printAppTable, buildCliCommand, ICliCommand, printGrid } from '../helpers';
 import {
   DtoApiKeyGenerate,
@@ -10,6 +8,7 @@ import {
   DtoApiKeyUpdate,
 } from '../types';
 import { EApiKeyType } from '../enums';
+import { ApiKeyService, getServices } from '../services';
 
 const CommandPrefix = 'api_key';
 
@@ -122,8 +121,7 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
 ];
 
 export const registerApiKeyCommands = (program: Command) => {
-  const appService = new AppService(appRepository, new CacheService());
-  const apiKeyService = new ApiKeyService(apiKeyRepository, appService);
+  const { apiKeyService } = getServices();
 
   buildCliCommand(Commands(apiKeyService), CommandPrefix, program);
 };
