@@ -11,6 +11,7 @@ COPY . .
 
 RUN npm install -g ts-node-dev
 
+RUN npm run prepare:docker
 
 # Enable hot reload
 CMD ["npm", "run", "dev"]

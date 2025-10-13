@@ -1,10 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 import { EApiKeyType } from '../enums';
-import { ApiKeyService, AppService } from '../services';
-import { apiKeyRepository, appRepository } from '../repositories';
+import { getServices } from '../services';
 
 export const ValidateApiKey = (type: EApiKeyType) => {
   return async (req: Request, res: Response, next: NextFunction) => {
+    const { apiKeyService } = getServices();
+
     const authToken: string = (req.headers.authorization || '') as string;
     const apiKeyAppHeader: string = req.headers['x-api-key-app'] as string;
 
@@ -17,8 +18,6 @@ export const ValidateApiKey = (type: EApiKeyType) => {
         error: 'Missing Api key',
       });
     }
-
-    const apiKeyService = new ApiKeyService(apiKeyRepository, new AppService(appRepository));
 
     const apikeyPayload = await apiKeyService.extractPayload(apiKeyHeader, apiKeyAppHeader);
 

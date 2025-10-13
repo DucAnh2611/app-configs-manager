@@ -47,30 +47,33 @@ npm install
 ```  
 
 3. Login into Dotenv Vault ([https://www.dotenv.org/](https://www.dotenv.org/))  
-After being added to the team, set up your vault.  
+After being added to the team, set up your vault.   
+```bash
+npm run dotenv:login
+``` 
 
 4. Pull environment variables:  
 ```bash
-npx dotenv-vault@latest pull  
+npm run dotenv:pull
 ``` 
 
 5. Build and start Docker:  
 ```bash
-docker compose up --build  
+npm run prepare:docker
+
+# Note: After run above command, .env.docker will be created, apply this line to .env.docker
+# DATABASE_HOST="postgres"
+# REDIS_HOST= redis
+
+docker compose up --build -d
 ```
 
 6. Migration
 ```bash
-npm run build
 npm run migration:run
 ```
 
-7. Run dev
-```bash
-npm run dev
-```
-
-8. Set up CLI command to use in **Git Bash** without `--` (Window -> setup on Git Bash):
+7. Set up CLI command to use in **Git Bash** without `--` (Window -> setup on Git Bash):
 ```bash
 chmod +x bin/app_config.js
 npm link
@@ -84,23 +87,16 @@ npm link
 When implementing new features or updating the database:
 
 1. Generate a new migration:  
+```bash
 npm run migration:generate Name_Of_Migration  
-
-2. Build the project:  
-```bash
-npm run build  
 ```
 
-3. Run migrations inside Docker:  
+2. Run migrations:  
 ```bash
-docker exec app_configs_backend npm run migration:run  
+npm run migration:run  
 ```
 
----
-
-## 🧭 Summary of Key Commands
-
-Run backend service: `docker compose up --build  `
-Run CLI command: `docker exec app_configs_backend npm run app <command> ` 
-Generate migration: `npm run migration:generate <Name>  `
-Apply migrations: `docker exec app_configs_backend npm run migration:run`
+3. Revert migrations:  
+```bash
+npm run migration:revert  
+```

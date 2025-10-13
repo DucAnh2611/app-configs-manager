@@ -1,22 +1,18 @@
 import { Router } from 'express';
-import { ValidateApiKey, ValidateDto } from '../middlewares';
-import { DtoAppUpConfig } from '../types';
-import { EValidateDtoType } from '../enums';
-import { AppService } from '../services';
-import { appRepository } from '../repositories';
-import { AppController } from '../controllers';
-import { EApiKeyType } from '../enums';
+import { ValidateApiKey, ValidateDto } from '../../middlewares';
+import { DtoAppUpConfig } from '../../types';
+import { EValidateDtoType } from '../../enums';
+import { EApiKeyType } from '../../enums';
+import { getController } from '../../controllers';
 
 export const AppRouter = Router();
-
-const appService = new AppService(appRepository);
-const appController = new AppController(appService);
 
 AppRouter.put(
   '/cfg',
   ValidateDto([{ dto: DtoAppUpConfig, type: EValidateDtoType.BODY }]),
   ValidateApiKey(EApiKeyType.UP_CONFIG),
   async (req, res) => {
+    const { appController } = getController();
     const { code } = (req as any).apiKey;
 
     const resData = await appController.upConfig(code, req.body);
@@ -26,6 +22,7 @@ AppRouter.put(
 );
 
 AppRouter.get('/cfg', ValidateApiKey(EApiKeyType.CONFIG), async (req, res) => {
+  const { appController } = getController();
   const { code } = (req as any).apiKey;
 
   const resData = await appController.appConfigs({ code: code });
