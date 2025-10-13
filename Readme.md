@@ -44,6 +44,7 @@ cd <repo-name>
 2. Install dependencies:  
 ```bash
 npm install
+npm run prepare
 ```  
 
 3. Login into Dotenv Vault ([https://www.dotenv.org/](https://www.dotenv.org/))  

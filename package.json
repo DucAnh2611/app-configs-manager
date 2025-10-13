@@ -17,11 +17,9 @@
     "dotenv:login": "npx dotenv-vault@latest login",
     "token:new": "node -e \"const len=parseInt(process.argv[1]||32); console.log(require('crypto').randomBytes(len).toString('hex'))\"",
     "prepare": "husky install",
-    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
-    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "typecheck": "tsc --noEmit",
     "test": "echo \"No tests yet\" && exit 0",
-    "prepush": "npm run lint && npm run typecheck && npm test",
+    "prepush": "npm run lint && npm run typecheck",
     "cli": "npx ts-node src/cli/index.ts",
     "app": "npm run cli --",
     "prepare:docker": "cp .env .env.docker"
@@ -52,6 +50,7 @@
     "redis": "^5.8.3",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.27",
+    "typescript-eslint": "^8.46.0",
     "uuid": "^13.0.0",
     "wrap-ansi": "^9.0.2"
   },
