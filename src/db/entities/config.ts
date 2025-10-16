@@ -19,7 +19,7 @@ export const ConfigEntity = new EntitySchema<IConfig>({
   columns: {
     id: {
       type: 'uuid',
-      generated: true,
+      generated: 'uuid',
       primary: true,
     },
     appId: {

@@ -15,7 +15,11 @@ let services: Services | null = null;
 
 export const initServices = async () => {
   const cacheService = new CacheService();
-  const appService = new AppService(appRepository, cacheService);
+  const appService = new AppService(
+    appRepository,
+    cacheService,
+    new ConfigService(configRepository)
+  );
   const apiKeyService = new ApiKeyService(apiKeyRepository, appService);
   const configService = new ConfigService(configRepository);
 
@@ -33,4 +37,4 @@ export const getServices = () => {
   return services;
 };
 
-export type { AppService, ApiKeyService, CacheService };
+export type { AppService, ApiKeyService, CacheService, ConfigService };
