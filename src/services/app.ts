@@ -1,4 +1,4 @@
-import { In } from 'typeorm';
+import { In, IsNull } from 'typeorm';
 import {
   DtoAppCreate,
   DtoAppDelete,
@@ -11,11 +11,14 @@ import { AppRepository } from '../repositories';
 import { EAppConfigsUpdateType } from '../enums';
 import { APP_CONSTANTS } from '../constants';
 import { CacheService } from './cache';
+import { ConfigService } from './config';
+import { IApp, IConfig } from '../db';
 
 export class AppService {
   constructor(
     private readonly appRepository: AppRepository,
-    private readonly cacheService: CacheService
+    private readonly cacheService: CacheService,
+    private readonly configService: ConfigService
   ) {}
 
   public async getConfigs(dto: DtoAppGetConfigs) {
@@ -65,6 +68,51 @@ export class AppService {
     );
 
     return updateConfigs;
+  }
+
+  public async migrationConfig() {
+    let page = 1;
+    const take = 10;
+
+    const countApps = await this.appRepository
+      .createQueryBuilder('app')
+      .leftJoin('app.vConfigs', 'vConfig')
+      .where('app.deletedAt IS NULL')
+      .andWhere((qb) => {
+        const subQuery = qb.subQuery().select('vConfig.appId').from('configs', 'vConfig');
+        return 'app.id NOT IN ' + subQuery.getQuery();
+      })
+      .getCount();
+
+    const totalPages = Math.ceil(countApps / take);
+
+    const configs: IConfig[] = [];
+
+    while (page <= totalPages) {
+      const migrated = await this.partialMigrateConfig(page, take);
+      configs.push(...migrated);
+
+      page++;
+    }
+
+    return configs;
+  }
+
+  public async partialMigrateConfig(page: number, take: number) {
+    const apps: IApp[] = await this.appRepository
+      .createQueryBuilder('app')
+      .select('app.*')
+      .leftJoin('app.vConfigs', 'vConfig')
+      .where('app.deletedAt IS NULL')
+      .andWhere((qb) => {
+        const subQuery = qb.subQuery().select('vConfig.appId').from('configs', 'vConfig');
+        return 'app.id NOT IN ' + subQuery.getQuery();
+      })
+      .take(take)
+      .skip((page - 1) * take)
+      .execute();
+
+    return this.configService.migrate(apps);
   }
 
   public async find() {
