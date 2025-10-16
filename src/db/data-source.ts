@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
 import { DATABASE_CONFIG } from '../configs';
-import { ApiKeyEntity, AppEntity } from './entities';
+import { ApiKeyEntity, AppEntity, ConfigEntity } from './entities';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -11,7 +11,7 @@ export const AppDataSource = new DataSource({
   database: DATABASE_CONFIG.database,
   synchronize: false,
   migrations: ['**/migrations/*.js'],
-  entities: [AppEntity, ApiKeyEntity],
+  entities: [AppEntity, ApiKeyEntity, ConfigEntity],
   applicationName: 'app_config_node',
   poolSize: 5,
 });

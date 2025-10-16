@@ -1,12 +1,14 @@
-import { apiKeyRepository, appRepository } from '../repositories';
+import { apiKeyRepository, appRepository, configRepository } from '../repositories';
 import { ApiKeyService } from './api-key';
 import { AppService } from './app';
 import { CacheService } from './cache';
+import { ConfigService } from './config';
 
 export type Services = {
   cacheService: CacheService;
   appService: AppService;
   apiKeyService: ApiKeyService;
+  configService: ConfigService;
 };
 
 let services: Services | null = null;
@@ -15,11 +17,13 @@ export const initServices = async () => {
   const cacheService = new CacheService();
   const appService = new AppService(appRepository, cacheService);
   const apiKeyService = new ApiKeyService(apiKeyRepository, appService);
+  const configService = new ConfigService(configRepository);
 
   services = {
     apiKeyService,
     cacheService,
     appService,
+    configService,
   };
 };
 
