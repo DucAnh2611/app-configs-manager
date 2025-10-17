@@ -29,7 +29,7 @@ export const ValidateApiKey = (type: EApiKeyType) => {
       });
     }
 
-    const { appCode, key } = apikeyPayload;
+    const { appCode, appId, key } = apikeyPayload;
 
     const valid = await apiKeyService.checkKeyType({
       type,
@@ -48,7 +48,8 @@ export const ValidateApiKey = (type: EApiKeyType) => {
     (req as any).apiKey = {
       type,
       code: appCode,
-      key: appCode,
+      key: key,
+      appId: appId,
     };
 
     next();

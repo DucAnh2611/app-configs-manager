@@ -3,22 +3,22 @@ import { IApp } from '../db';
 import { decrypt, encrypt } from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
-  DtoConfigBulkUp,
-  DtoConfigGet,
-  DtoConfigHistory,
-  DtoConfigRemove,
-  DtoConfigRollback,
-  DtoConfigToggleUse,
-  DtoConfigUp,
   TConfigDecoded,
+  TConfigServiceBulkUp,
+  TConfigServiceGet,
+  TConfigServiceHistory,
+  TConfigServiceRemove,
+  TConfigServiceRollback,
+  TConfigServiceToggleUse,
+  TConfigServiceUp,
 } from '../types';
 
 export class ConfigService {
   constructor(private readonly configRepository: ConfigRepository) {}
 
-  public async history(dto: DtoConfigHistory) {
+  public async history(dto: TConfigServiceHistory) {
     const configs = await this.configRepository.find({
-      where: { app: { code: dto.appCode }, namespace: dto.appNamespace },
+      where: { appId: dto.appId, namespace: dto.appNamespace },
       select: {
         id: true,
         isUse: true,
@@ -37,13 +37,13 @@ export class ConfigService {
     return configs;
   }
 
-  public async get(dto: DtoConfigGet) {
+  public async get(dto: TConfigServiceGet) {
     const config = await this.configRepository.findOne({
-      where: { app: { code: dto.appCode }, namespace: dto.appNamespace },
+      where: { appId: dto.appId, namespace: dto.appNamespace, isUse: true },
     });
 
     if (!config) {
-      throw new Error(`Config of ${dto.appCode} not found!`);
+      throw new Error(`Config not found!`);
     }
 
     return {
@@ -52,7 +52,7 @@ export class ConfigService {
     } as TConfigDecoded;
   }
 
-  public async up(dto: DtoConfigUp) {
+  public async up(dto: TConfigServiceUp) {
     const newVersion = await this.getNewVersion(dto.appId, dto.namespace);
 
     await this.unusePreviousVersion(dto.appId, dto.namespace);
@@ -68,22 +68,29 @@ export class ConfigService {
     return newConfig;
   }
 
-  public async toggleUse(dto: DtoConfigToggleUse) {
-    const config = await this.configRepository.findOne({ where: { id: dto.configId } });
+  public async toggleUse(dto: TConfigServiceToggleUse) {
+    const config = await this.configRepository.findOne({
+      where: { id: dto.configId, appId: dto.appId },
+    });
 
     if (!config) {
       throw new Error(`Config not found!`);
     }
 
-    await this.unusePreviousVersion(config.appId, config.namespace);
+    if (!config.isUse) await this.unusePreviousVersion(config.appId, config.namespace);
 
-    const toggled = await this.configRepository.update({ id: dto.configId }, { isUse: true });
+    const toggled = await this.configRepository.update(
+      { id: dto.configId, appId: dto.appId },
+      { isUse: !config.isUse }
+    );
 
     return !!toggled.affected;
   }
 
-  public async remove(dto: DtoConfigRemove) {
-    const config = await this.configRepository.findOne({ where: { id: dto.configId } });
+  public async remove(dto: TConfigServiceRemove) {
+    const config = await this.configRepository.findOne({
+      where: { id: dto.configId, appId: dto.appId },
+    });
 
     if (!config) {
       throw new Error(`Config not found!`);
@@ -94,16 +101,21 @@ export class ConfigService {
     return true;
   }
 
-  public async rollback(dto: DtoConfigRollback) {
-    const config = await this.configRepository.findOne({ where: { id: dto.configId } });
+  public async rollback(dto: TConfigServiceRollback) {
+    const config = await this.configRepository.findOne({
+      where: { id: dto.configId, appId: dto.appId },
+    });
 
     if (!config) {
       throw new Error(`Config not found!`);
     }
 
-    await this.unusePreviousVersion(config.appId, config.namespace);
+    const newVersion = await this.getNewVersion(dto.appId, config.namespace);
+    await this.unusePreviousVersion(dto.appId, config.namespace);
 
-    await this.configRepository.update({ id: config.id }, { isUse: true });
+    const { id: _, ...configData } = config;
+
+    await this.configRepository.save({ ...configData, isUse: true, version: newVersion });
 
     return true;
   }
@@ -118,14 +130,14 @@ export class ConfigService {
             namespace: 'dev',
             isUse: true,
             version: await this.getNewVersion(app.id, 'dev'),
-          }) as DtoConfigBulkUp
+          }) as TConfigServiceBulkUp
       )
     );
 
     return this.bulkUp(bulkUpPayload);
   }
 
-  private async bulkUp(dtos: DtoConfigBulkUp[]) {
+  private async bulkUp(dtos: TConfigServiceBulkUp[]) {
     const saveConfigs = await Promise.all(
       dtos.map(async (dto) =>
         this.configRepository.create({

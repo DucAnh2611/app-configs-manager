@@ -1,6 +1,8 @@
 import { Like } from 'typeorm';
 import { IApiKey } from '../db';
-import { formatString, generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
+import { EApiKeyType } from '../enums';
+import { generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
+import { ApiKeyRepository } from '../repositories';
 import {
   DtoApiKeyCheckKeyType,
   DtoApiKeyGenerate,
@@ -12,8 +14,6 @@ import {
   TJwtApiKeyPayload,
 } from '../types';
 import { AppService } from './app';
-import { ApiKeyRepository } from '../repositories';
-import { EApiKeyType, EAppConfigsUpdateType } from '../enums';
 
 export class ApiKeyService {
   constructor(
@@ -101,6 +101,7 @@ export class ApiKeyService {
           appCode: app.code,
           key: key,
           type: dto.type,
+          appId: app.id,
         },
         JWT_SECRET_API_KEY
       ),
@@ -152,6 +153,7 @@ export class ApiKeyService {
           appCode: app.code,
           key: key,
           type: apiKey.type,
+          appId: app.id,
         },
         JWT_SECRET_API_KEY
       ),
