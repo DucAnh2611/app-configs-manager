@@ -1,22 +1,18 @@
-import {
-  IsBoolean,
-  IsInt,
-  IsNotEmpty,
-  IsNumber,
-  IsObject,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Min,
-} from 'class-validator';
+import { IsNotEmpty, IsObject, IsString, IsUUID } from 'class-validator';
 
-export class DtoConfigGet {}
+export class DtoConfigHistory {
+  @IsNotEmpty()
+  @IsString()
+  namespace: string;
+}
+
+export class DtoConfigGet {
+  @IsNotEmpty()
+  @IsString()
+  namespace: string;
+}
 
 export class DtoConfigUp {
-  @IsNotEmpty()
-  @IsUUID()
-  appId: string;
-
   @IsNotEmpty()
   @IsObject()
   configs: Record<string, any>;
@@ -24,14 +20,22 @@ export class DtoConfigUp {
   @IsNotEmpty()
   @IsString()
   namespace: string;
+}
 
+export class DtoConfigToggleUse {
   @IsNotEmpty()
-  @IsNumber({ allowNaN: false, allowInfinity: false })
-  @IsInt()
-  @Min(1)
-  version: number;
+  @IsUUID()
+  id: string;
+}
 
-  @IsOptional()
-  @IsBoolean()
-  isUse: boolean = false;
+export class DtoConfigRemove {
+  @IsNotEmpty()
+  @IsUUID()
+  id: string;
+}
+
+export class DtoConfigRollback {
+  @IsNotEmpty()
+  @IsUUID()
+  id: string;
 }
