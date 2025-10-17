@@ -1,4 +1,8 @@
-import { In, IsNull } from 'typeorm';
+import { In } from 'typeorm';
+import { APP_CONSTANTS } from '../constants';
+import { IApp, IConfig } from '../db';
+import { EAppConfigsUpdateType } from '../enums';
+import { AppRepository } from '../repositories';
 import {
   DtoAppCreate,
   DtoAppDelete,
@@ -7,12 +11,8 @@ import {
   DtoAppUpConfig,
   DtoAppUpdate,
 } from '../types';
-import { AppRepository } from '../repositories';
-import { EAppConfigsUpdateType } from '../enums';
-import { APP_CONSTANTS } from '../constants';
 import { CacheService } from './cache';
 import { ConfigService } from './config';
-import { IApp, IConfig } from '../db';
 
 export class AppService {
   constructor(
