@@ -1,5 +1,6 @@
 import { EntitySchema } from 'typeorm';
 import { IApiKey } from './api-key';
+import { IConfig } from './config';
 
 export interface IApp {
   id: string;
@@ -10,6 +11,7 @@ export interface IApp {
   updatedAt: Date;
   deletedAt?: Date | null;
   apiKeys?: IApiKey[];
+  vConfigs?: IConfig[];
 }
 
 export const AppEntity = new EntitySchema<IApp>({
@@ -51,6 +53,12 @@ export const AppEntity = new EntitySchema<IApp>({
     apiKeys: {
       type: 'one-to-many',
       target: 'ApiKey',
+      inverseSide: 'app',
+      cascade: true,
+    },
+    vConfigs: {
+      type: 'one-to-many',
+      target: 'Config',
       inverseSide: 'app',
       cascade: true,
     },

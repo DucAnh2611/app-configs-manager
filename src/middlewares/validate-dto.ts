@@ -1,7 +1,7 @@
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { NextFunction, Request, Response } from 'express';
 import { EValidateDtoType } from '../enums';
-import { validate } from 'class-validator';
-import { plainToInstance } from 'class-transformer';
 
 export const ValidateDto = (sources: Array<{ dto: any; type: EValidateDtoType }> = []) => {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -40,5 +40,5 @@ const validateEachSource = async (
     });
   }
 
-  (req as any)[sourceType] = dtoInstance;
+  Object.assign(req[sourceType], dtoInstance);
 };

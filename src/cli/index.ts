@@ -7,6 +7,7 @@ import chalk from 'chalk';
 import { registerApiKeyCommands } from './api-key';
 import { connectRedis } from '../libs';
 import { initControllers } from '../controllers';
+import { registerConfigCommands } from './config';
 
 const InitCli = async () => {
   const program = new Command();
@@ -18,6 +19,7 @@ const InitCli = async () => {
 
   registerAppCommands(program);
   registerApiKeyCommands(program);
+  registerConfigCommands(program);
 
   AppDataSource.initialize()
     .then(async () => {
