@@ -12,4 +12,6 @@
   "[typescript]": {
     "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
   },
+  "editor.tabSize": 4,
+  "editor.lineHeight": 1.5,
 }
