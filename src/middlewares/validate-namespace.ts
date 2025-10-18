@@ -1,7 +1,10 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
+import { EErrorCode, EResponseStatus } from '../enums';
+import { Exception, middlewareHandler, responseHandler } from '../helpers';
+import { TRequest } from '../types';
 
 export const ValidateNamespace = () => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return middlewareHandler((req: TRequest, res: Response, next: NextFunction) => {
     let namespace = req.headers['namespace'] ?? '';
     let appCodeHeader = req.headers['app-code'] ?? '';
 
@@ -14,26 +17,24 @@ export const ValidateNamespace = () => {
     }
 
     if (!namespace.trim()) {
-      return res.status(401).json({
-        status: 401,
-        success: false,
-        error: 'Missing Namespace header!',
-      });
+      return responseHandler(
+        res,
+        new Exception(EResponseStatus.Unauthorized, EErrorCode.MISSING_HEADER_NAMESPACE)
+      );
     }
 
     if (!appCodeHeader.trim()) {
-      return res.status(403).json({
-        status: 403,
-        success: false,
-        error: 'Missing App code',
-      });
+      return responseHandler(
+        res,
+        new Exception(EResponseStatus.Unauthorized, EErrorCode.MISSING_HEADER_APP_CODE)
+      );
     }
 
-    (req as any).app = {
+    req.appSign = {
       namespace: namespace.trim(),
       code: appCodeHeader.trim(),
     };
 
     next();
-  };
+  });
 };

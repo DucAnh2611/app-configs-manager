@@ -12,111 +12,26 @@ export class ConfigController {
   constructor(private readonly configService: ConfigService) {}
 
   public async history(dto: TConfigServiceHistory) {
-    try {
-      const data = await this.configService.history(dto);
-
-      return {
-        status: 200,
-        success: true,
-        data,
-      };
-    } catch (error) {
-      return {
-        status: 400,
-        success: false,
-        error: (error as Error).message,
-      };
-    }
+    return await this.configService.history(dto);
   }
 
   public async up(dto: TConfigServiceUp) {
-    try {
-      const data = await this.configService.up(dto);
-
-      return {
-        status: 200,
-        success: true,
-        data,
-      };
-    } catch (error) {
-      console.log(error);
-      return {
-        status: 400,
-        success: false,
-        error: (error as Error).message,
-      };
-    }
+    return await this.configService.up(dto);
   }
 
   public async get(dto: TConfigServiceGet) {
-    try {
-      const data = await this.configService.get(dto);
-
-      return {
-        status: 200,
-        success: true,
-        data,
-      };
-    } catch (error) {
-      return {
-        status: 400,
-        success: false,
-        error: (error as Error).message,
-      };
-    }
+    return await this.configService.get(dto);
   }
 
   public async toggleUse(dto: TConfigServiceToggleUse) {
-    try {
-      const data = await this.configService.toggleUse(dto);
-
-      return {
-        status: 200,
-        success: true,
-        data,
-      };
-    } catch (error) {
-      return {
-        status: 400,
-        success: false,
-        error: (error as Error).message,
-      };
-    }
+    return await this.configService.toggleUse(dto);
   }
 
   public async remove(dto: TConfigServiceRemove) {
-    try {
-      const data = await this.configService.remove(dto);
-
-      return {
-        status: 200,
-        success: true,
-        data,
-      };
-    } catch (error) {
-      return {
-        status: 400,
-        success: false,
-        error: (error as Error).message,
-      };
-    }
+    return await this.configService.remove(dto);
   }
 
   public async rollback(dto: TConfigServiceRollback) {
-    try {
-      const data = await this.configService.rollback(dto);
-
-      return {
-        status: 200,
-        success: true,
-        data,
-      };
-    } catch (error) {
-      return {
-        status: 400,
-        success: false,
-        error: (error as Error).message,
-      };
-    }
+    return await this.configService.rollback(dto);
   }
 }

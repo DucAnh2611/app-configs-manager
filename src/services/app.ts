@@ -1,5 +1,7 @@
 import { In } from 'typeorm';
 import { IApp, IConfig } from '../db';
+import { EErrorCode, EResponseStatus } from '../enums';
+import { Exception } from '../helpers';
 import { AppRepository } from '../repositories';
 import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate } from '../types';
 import { CacheService } from './cache';
@@ -69,7 +71,7 @@ export class AppService {
 
     const isExist = await this.getById(dto.id);
     if (!isExist) {
-      throw new Error('Not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     const detail = await this.appRepository.findOne({
@@ -94,7 +96,7 @@ export class AppService {
   public async create(dto: DtoAppCreate) {
     const isExist = await this.getByCode(dto.code);
     if (isExist) {
-      throw new Error('Existed!');
+      throw new Exception(EResponseStatus.BadRequest, EErrorCode.APP_EXISTED);
     }
 
     const { code, name } = dto;
@@ -116,14 +118,14 @@ export class AppService {
   public async update(dto: DtoAppUpdate) {
     const isExist = await this.getById(dto.id);
     if (!isExist) {
-      throw new Error('Not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     const { id, code = isExist.code, name = isExist.name } = dto;
 
     const isExistedCode = await this.getByCode(code);
     if (isExistedCode) {
-      throw new Error('Existed!');
+      throw new Exception(EResponseStatus.BadRequest, EErrorCode.APP_EXISTED);
     }
 
     const saved = await this.appRepository.update(

@@ -1,7 +1,7 @@
 import { Like } from 'typeorm';
 import { IApiKey } from '../db';
-import { EApiKeyType } from '../enums';
-import { generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
+import { EApiKeyType, EErrorCode, EResponseStatus } from '../enums';
+import { Exception, generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
 import { ApiKeyRepository } from '../repositories';
 import {
   DtoApiKeyCheckKeyType,
@@ -46,12 +46,12 @@ export class ApiKeyService {
   public async toggle(dto: DtoApiKeyToggle) {
     const apiKey = await this.getById(dto.id);
     if (!apiKey) {
-      throw new Error('ApiKey not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APIKEY_NOT_EXIST);
     }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
-      throw new Error('App not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     const updateApiKey: Partial<IApiKey> = {};
@@ -73,7 +73,7 @@ export class ApiKeyService {
   public async generate(dto: DtoApiKeyGenerate): Promise<IApiKey & { formattedKey: string }> {
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
-      throw new Error('App not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     const key = generateBytes(Number(dto.length));
@@ -86,7 +86,10 @@ export class ApiKeyService {
     const { JWT_SECRET_API_KEY, PUBLIC_KEY_LENGTH } = config.configs;
 
     if (dto.type === EApiKeyType.THIRD_PARTY && !PUBLIC_KEY_LENGTH) {
-      throw new Error("Public key length haven't configured!");
+      throw new Exception(
+        EResponseStatus.BadRequest,
+        EErrorCode.PUBLIC_KEY_LENGTH_IS_NOT_CONFIGURATED
+      );
     }
 
     const saved = await this.apiKeyRepository.save({
@@ -129,12 +132,12 @@ export class ApiKeyService {
   public async reset(dto: DtoApiKeyReset) {
     const apiKey = await this.getById(dto.id);
     if (!apiKey) {
-      throw new Error('ApiKey not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APIKEY_NOT_EXIST);
     }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
-      throw new Error('App not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     const key = generateBytes(Number(dto.length));
@@ -171,12 +174,12 @@ export class ApiKeyService {
   public async update(dto: DtoApiKeyUpdate) {
     const apiKey = await this.getById(dto.id);
     if (!apiKey) {
-      throw new Error('ApiKey not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APIKEY_NOT_EXIST);
     }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
-      throw new Error('App not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     if (dto.isDelete) {
