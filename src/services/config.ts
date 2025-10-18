@@ -1,7 +1,8 @@
 import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
 import { IApp } from '../db';
-import { decrypt, encrypt } from '../helpers';
+import { EErrorCode, EResponseStatus } from '../enums';
+import { decrypt, encrypt, Exception } from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
   TConfigDecoded,
@@ -44,7 +45,7 @@ export class ConfigService {
     });
 
     if (!config) {
-      throw new Error(`Config not found!`);
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
     return {
@@ -66,7 +67,7 @@ export class ConfigService {
       version: newVersion,
     });
 
-    return newConfig;
+    return { ...newConfig, configs: this.decryptConfig(newConfig.configs) };
   }
 
   public async toggleUse(dto: TConfigServiceToggleUse) {
@@ -75,7 +76,7 @@ export class ConfigService {
     });
 
     if (!config) {
-      throw new Error(`Config not found!`);
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
     if (!config.isUse) await this.unusePreviousVersion(config.appId, config.namespace);
@@ -94,7 +95,7 @@ export class ConfigService {
     });
 
     if (!config) {
-      throw new Error(`Config not found!`);
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
     await this.configRepository.softDelete(config.id);
@@ -108,7 +109,7 @@ export class ConfigService {
     });
 
     if (!config) {
-      throw new Error(`Config not found!`);
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
     const newVersion = await this.getNewVersion(dto.appId, config.namespace);

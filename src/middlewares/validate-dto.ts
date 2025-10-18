@@ -1,43 +1,35 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { NextFunction, Request, Response } from 'express';
-import { EValidateDtoType } from '../enums';
+import { EResponseStatus, EValidateDtoType } from '../enums';
+import { Exception, middlewareHandler } from '../helpers';
+import { TResponseValidation } from '../types';
 
 export const ValidateDto = (sources: Array<{ dto: any; type: EValidateDtoType }> = []) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return middlewareHandler(async (req: Request, res: Response, next: NextFunction) => {
     for (const source of sources) {
-      await validateEachSource(source.dto, source.type, req, res);
+      await validateEachSource(source.dto, source.type, req);
     }
 
     (req as any).isValidateDto = true;
 
     next();
-  };
+  });
 };
 
-const validateEachSource = async (
-  dtoClass: any,
-  sourceType: EValidateDtoType,
-  req: Request,
-  res: Response
-) => {
+const validateEachSource = async (dtoClass: any, sourceType: EValidateDtoType, req: Request) => {
   const data = req[sourceType];
   const dtoInstance = plainToInstance(dtoClass, data);
   const errors = await validate(dtoInstance, { whitelist: true, forbidNonWhitelisted: true });
 
   if (errors.length > 0) {
-    const formatted = errors.map((err) => ({
+    const formatted: TResponseValidation[] = errors.map((err) => ({
       property: err.property,
       constraints: err.constraints,
       children: err.children?.length ? err.children : undefined,
     }));
 
-    return res.status(400).json({
-      success: false,
-      status: 400,
-      message: `Validation failed in ${sourceType}`,
-      errors: formatted,
-    });
+    throw new Exception(EResponseStatus.BadRequest, formatted);
   }
 
   Object.assign(req[sourceType], dtoInstance);
