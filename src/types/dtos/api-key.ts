@@ -50,6 +50,10 @@ export class DtoApiKeyGenerate {
   @IsNotEmpty()
   @IsString()
   description: string;
+
+  @IsNotEmpty()
+  @IsString()
+  namespace: string;
 }
 
 export class DtoApiKeyList {
@@ -71,6 +75,10 @@ export class DtoApiKeyReset {
   @IsString()
   @MinLength(8)
   length: string;
+
+  @IsNotEmpty()
+  @IsString()
+  namespace: string;
 }
 
 export class DtoApiKeyCheckKeyType {

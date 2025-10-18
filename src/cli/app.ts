@@ -1,8 +1,8 @@
 import { Command } from 'commander';
+import { IApp } from '../db';
+import { buildCliCommand, ICliCommand, printAppTable } from '../helpers';
 import { AppService, getServices } from '../services';
 import { DtoAppCreate, DtoAppDetail, DtoAppUpdate } from '../types';
-import { printAppTable, buildCliCommand, ICliCommand } from '../helpers';
-import { IApp } from '../db';
 
 const CommandPrefix = 'app';
 
@@ -13,11 +13,14 @@ const Commands = (appService: AppService): ICliCommand[] => [
     options: [
       { required: true, flags: '--code <code>', description: 'App code' },
       { required: true, flags: '--name <name>', description: 'App name' },
+      { required: true, flags: '--namespace <namespace>', description: 'Default config namespace' },
     ],
     action: async (opts: DtoAppCreate) => {
       const saveApp = await appService.create(opts);
 
       printAppTable([saveApp], ['id', 'code', 'name', 'createdAt', 'updatedAt']);
+
+      process.exit(1);
     },
   },
   {
@@ -31,6 +34,8 @@ const Commands = (appService: AppService): ICliCommand[] => [
     action: async (opts: DtoAppUpdate) => {
       const updateApp = await appService.update(opts);
       console.log('✅ App updated:', updateApp);
+
+      process.exit(1);
     },
   },
   {
@@ -45,6 +50,8 @@ const Commands = (appService: AppService): ICliCommand[] => [
         ids.map((id: string) => ({ id, deleted: true })),
         ['id', 'deleted']
       );
+
+      process.exit(1);
     },
   },
   {
@@ -54,6 +61,8 @@ const Commands = (appService: AppService): ICliCommand[] => [
       const list = await appService.find();
 
       printAppTable(list, ['id', 'code', 'name', 'createdAt', 'updatedAt']);
+
+      process.exit(1);
     },
   },
   {
@@ -70,6 +79,8 @@ const Commands = (appService: AppService): ICliCommand[] => [
       }
 
       printAppTable(data, ['id', 'code', 'name', 'createdAt', 'updatedAt']);
+
+      process.exit(1);
     },
   },
   {

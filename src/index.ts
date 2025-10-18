@@ -1,8 +1,8 @@
 import express from 'express';
-import { AppDataSource } from './db';
-import { ApiRoutes } from './routes/api';
-import { connectRedis, env } from './libs';
 import { initControllers } from './controllers';
+import { AppDataSource } from './db';
+import { connectRedis, env } from './libs';
+import { ApiRouter } from './routes/api';
 
 async function main() {
   const app = express();
@@ -22,7 +22,7 @@ async function main() {
     res.json({ message: 'Hello from API' });
   });
 
-  app.use('/api', ApiRoutes);
+  app.use('/api', ApiRouter);
 
   const PORT = env.PORT;
 

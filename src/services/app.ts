@@ -1,16 +1,7 @@
 import { In } from 'typeorm';
-import { APP_CONSTANTS } from '../constants';
 import { IApp, IConfig } from '../db';
-import { EAppConfigsUpdateType } from '../enums';
 import { AppRepository } from '../repositories';
-import {
-  DtoAppCreate,
-  DtoAppDelete,
-  DtoAppDetail,
-  DtoAppGetConfigs,
-  DtoAppUpConfig,
-  DtoAppUpdate,
-} from '../types';
+import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate } from '../types';
 import { CacheService } from './cache';
 import { ConfigService } from './config';
 
@@ -20,55 +11,6 @@ export class AppService {
     private readonly cacheService: CacheService,
     private readonly configService: ConfigService
   ) {}
-
-  public async getConfigs(dto: DtoAppGetConfigs) {
-    const app = await this.getByCode(dto.code);
-    if (!app) {
-      throw new Error('Not exist!');
-    }
-
-    return app.configs;
-  }
-
-  public async upConfig(code: string, dto: DtoAppUpConfig) {
-    const app = await this.getByCode(code);
-    if (!app) {
-      throw new Error('Not exist!');
-    }
-
-    const { configs, mode } = dto;
-    let updateConfigs = app.configs;
-
-    switch (mode) {
-      case EAppConfigsUpdateType.HARD:
-        updateConfigs = configs;
-        break;
-
-      case EAppConfigsUpdateType.SOFT:
-        updateConfigs = {
-          ...updateConfigs,
-          ...configs,
-        };
-        break;
-
-      default:
-        break;
-    }
-
-    await this.appRepository.update(
-      {
-        id: app.id,
-      },
-      {
-        configs: {
-          ...APP_CONSTANTS.DEFAULT_CONFIGS,
-          ...updateConfigs,
-        },
-      }
-    );
-
-    return updateConfigs;
-  }
 
   public async migrationConfig() {
     let page = 1;
@@ -160,7 +102,12 @@ export class AppService {
     const saved = await this.appRepository.save({
       code: this.safeCode(code),
       name,
-      configs: APP_CONSTANTS.DEFAULT_CONFIGS,
+    });
+
+    await this.configService.up({
+      appId: saved.id,
+      configs: {},
+      namespace: dto.namespace,
     });
 
     return saved;

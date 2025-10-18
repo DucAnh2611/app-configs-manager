@@ -1,25 +1,13 @@
-import { IsNotEmpty, IsObject, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsObject, IsUUID } from 'class-validator';
 
-export class DtoConfigHistory {
-  @IsNotEmpty()
-  @IsString()
-  namespace: string;
-}
+export class DtoConfigHistory {}
 
-export class DtoConfigGet {
-  @IsNotEmpty()
-  @IsString()
-  namespace: string;
-}
+export class DtoConfigGet {}
 
 export class DtoConfigUp {
   @IsNotEmpty()
   @IsObject()
   configs: Record<string, any>;
-
-  @IsNotEmpty()
-  @IsString()
-  namespace: string;
 }
 
 export class DtoConfigToggleUse {

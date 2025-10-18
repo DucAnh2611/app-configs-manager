@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { ValidateDto } from '../../middlewares';
-import { DtoApiKeyValidate } from '../../types';
-import { EValidateDtoType } from '../../enums';
-import { getController } from '../../controllers';
+import { getController } from '../../../controllers';
+import { EValidateDtoType } from '../../../enums';
+import { ValidateDto } from '../../../middlewares';
+import { DtoApiKeyValidate } from '../../../types';
 
 export const ApiKeyRouter = Router();
 
