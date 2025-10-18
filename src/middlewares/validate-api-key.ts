@@ -7,7 +7,6 @@ export const ValidateApiKey = (type: EApiKeyType) => {
     const { apiKeyService } = getServices();
 
     const authToken: string = (req.headers.authorization || '') as string;
-    const apiKeyAppHeader: string = req.headers['x-api-key-app'] as string;
 
     const [_, apiKeyHeader] = authToken.split(' ');
 
@@ -19,7 +18,9 @@ export const ValidateApiKey = (type: EApiKeyType) => {
       });
     }
 
-    const apikeyPayload = await apiKeyService.extractPayload(apiKeyHeader, apiKeyAppHeader);
+    const { code: appCode, namespace } = (req as any).app;
+
+    const apikeyPayload = await apiKeyService.extractPayload(apiKeyHeader, appCode, namespace);
 
     if (!apikeyPayload || apikeyPayload.type !== type) {
       return res.status(403).json({
@@ -29,7 +30,7 @@ export const ValidateApiKey = (type: EApiKeyType) => {
       });
     }
 
-    const { appCode, appId, key } = apikeyPayload;
+    const { appId, key } = apikeyPayload;
 
     const valid = await apiKeyService.checkKeyType({
       type,

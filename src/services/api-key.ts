@@ -14,11 +14,13 @@ import {
   TJwtApiKeyPayload,
 } from '../types';
 import { AppService } from './app';
+import { ConfigService } from './config';
 
 export class ApiKeyService {
   constructor(
     private readonly apiKeyRepository: ApiKeyRepository,
-    private readonly appService: AppService
+    private readonly appService: AppService,
+    private readonly configService: ConfigService
   ) {}
 
   public async validate(dto: DtoApiKeyValidate) {
@@ -76,9 +78,12 @@ export class ApiKeyService {
 
     const key = generateBytes(Number(dto.length));
 
-    const { PUBLIC_KEY_LENGTH = null, JWT_SECRET_API_KEY } = await this.appService.getConfigs({
-      code: dto.code,
+    const config = await this.configService.get({
+      appId: app.id,
+      appNamespace: dto.namespace,
     });
+
+    const { JWT_SECRET_API_KEY, PUBLIC_KEY_LENGTH } = config.configs;
 
     if (dto.type === EApiKeyType.THIRD_PARTY && !PUBLIC_KEY_LENGTH) {
       throw new Error("Public key length haven't configured!");
@@ -134,9 +139,12 @@ export class ApiKeyService {
 
     const key = generateBytes(Number(dto.length));
 
-    const { JWT_SECRET_API_KEY } = await this.appService.getConfigs({
-      code: dto.code,
+    const config = await this.configService.get({
+      appId: app.id,
+      appNamespace: dto.namespace,
     });
+
+    const { JWT_SECRET_API_KEY } = config.configs;
 
     await this.apiKeyRepository.update(
       { id: dto.id },
@@ -213,11 +221,26 @@ export class ApiKeyService {
     return false;
   }
 
-  public async extractPayload(token: string, code: string): Promise<TJwtApiKeyPayload | null> {
-    const { JWT_SECRET_API_KEY } = await this.appService.getConfigs({
-      code: code,
-    });
+  public async extractPayload(
+    token: string,
+    code: string,
+    namespace: string
+  ): Promise<TJwtApiKeyPayload | null> {
+    const app = await this.appService.getByCode(code);
 
-    return verifyJwt<TJwtApiKeyPayload>(token, JWT_SECRET_API_KEY);
+    if (!app) return null;
+
+    try {
+      const config = await this.configService.get({
+        appId: app.id,
+        appNamespace: namespace,
+      });
+
+      const { JWT_SECRET_API_KEY } = config.configs;
+
+      return verifyJwt<TJwtApiKeyPayload>(token, JWT_SECRET_API_KEY);
+    } catch {
+      return null;
+    }
   }
 }

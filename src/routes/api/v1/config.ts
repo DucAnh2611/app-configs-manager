@@ -1,49 +1,37 @@
 import { Router } from 'express';
-import { getController } from '../../controllers';
-import { EApiKeyType, EValidateDtoType } from '../../enums';
-import { ValidateApiKey, ValidateDto } from '../../middlewares';
+import { getController } from '../../../controllers';
+import { EApiKeyType, EValidateDtoType } from '../../../enums';
+import { ValidateApiKey, ValidateDto } from '../../../middlewares';
 import {
-  DtoConfigGet,
-  DtoConfigHistory,
   DtoConfigRemove,
   DtoConfigRollback,
   DtoConfigToggleUse,
   DtoConfigUp,
-} from '../../types';
+} from '../../../types';
 
 export const ConfigRouter = Router();
 
-ConfigRouter.get(
-  '/history',
-  ValidateDto([{ dto: DtoConfigHistory, type: EValidateDtoType.QUERY }]),
-  ValidateApiKey(EApiKeyType.CONFIG),
-  async (req, res) => {
-    const { configController } = getController();
+ConfigRouter.get('/history', ValidateApiKey(EApiKeyType.CONFIG), async (req, res) => {
+  const { configController } = getController();
 
-    const { appId } = (req as any).apiKey;
-    const { namespace } = req.query as any as DtoConfigHistory;
+  const { appId } = (req as any).apiKey;
+  const { namespace } = (req as any).app;
 
-    const resData = await configController.history({ appId, appNamespace: namespace });
+  const resData = await configController.history({ appId, appNamespace: namespace });
 
-    return res.status(resData.status).json(resData);
-  }
-);
+  return res.status(resData.status).json(resData);
+});
 
-ConfigRouter.get(
-  '/',
-  ValidateDto([{ dto: DtoConfigGet, type: EValidateDtoType.QUERY }]),
-  ValidateApiKey(EApiKeyType.CONFIG),
-  async (req, res) => {
-    const { configController } = getController();
+ConfigRouter.get('/', ValidateApiKey(EApiKeyType.CONFIG), async (req, res) => {
+  const { configController } = getController();
 
-    const { appId } = (req as any).apiKey;
-    const { namespace } = req.query as any as DtoConfigGet;
+  const { appId } = (req as any).apiKey;
+  const { namespace } = (req as any).app;
 
-    const resData = await configController.get({ appId, appNamespace: namespace });
+  const resData = await configController.get({ appId, appNamespace: namespace });
 
-    return res.status(resData.status).json(resData);
-  }
-);
+  return res.status(resData.status).json(resData);
+});
 
 ConfigRouter.post(
   '/',
@@ -53,8 +41,9 @@ ConfigRouter.post(
     const { configController } = getController();
 
     const { appId } = (req as any).apiKey;
+    const { namespace } = (req as any).app;
 
-    const resData = await configController.up({ appId, ...req.body });
+    const resData = await configController.up({ appId, namespace, ...req.body });
 
     return res.status(resData.status).json(resData);
   }

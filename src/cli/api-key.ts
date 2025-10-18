@@ -1,5 +1,7 @@
 import { Command } from 'commander';
-import { printAppTable, buildCliCommand, ICliCommand, printGrid } from '../helpers';
+import { EApiKeyType } from '../enums';
+import { buildCliCommand, ICliCommand, printAppTable, printGrid } from '../helpers';
+import { ApiKeyService, getServices } from '../services';
 import {
   DtoApiKeyGenerate,
   DtoApiKeyList,
@@ -7,8 +9,6 @@ import {
   DtoApiKeyToggle,
   DtoApiKeyUpdate,
 } from '../types';
-import { EApiKeyType } from '../enums';
-import { ApiKeyService, getServices } from '../services';
 
 const CommandPrefix = 'api_key';
 
@@ -32,6 +32,8 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
           ['active', 'Active'],
         ]
       );
+
+      process.exit(1);
     },
   },
   {
@@ -39,6 +41,7 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
     description: 'Generate api key',
     options: [
       { required: true, flags: '--code <code>', description: 'App code' },
+      { required: true, flags: '--namespace <namespace>', description: 'Namespace of config' },
       { flags: '--description <description>', description: 'Api key description', default: '' },
       { flags: '--type <type>', description: 'Api key type', default: EApiKeyType.CONFIG },
       { flags: '--length <length>', description: 'Api key length', default: '32' },
@@ -49,6 +52,7 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       const cols: Array<[keyof typeof generate, string]> = [
         ['id', 'Id'],
         ['formattedKey', 'Auth Key'],
+        ['type', 'Api Key Type'],
       ];
 
       if (opts.type === EApiKeyType.THIRD_PARTY) {
@@ -56,6 +60,8 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       }
 
       printGrid(generate, cols);
+
+      process.exit(1);
     },
   },
   {
@@ -72,6 +78,8 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
         ['publicKey', 'Public Key'],
         ['active', 'Active'],
       ]);
+
+      process.exit(1);
     },
   },
   {
@@ -80,6 +88,7 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
     options: [
       { required: true, flags: '--code <code>', description: 'App code' },
       { required: true, flags: '--id <id>', description: 'Api key id', default: '' },
+      { required: true, flags: '--namespace <namespace>', description: 'Namespace of config' },
       { flags: '--length <length>', description: 'Api key length', default: '32' },
     ],
     action: async (opts: DtoApiKeyReset) => {
@@ -88,6 +97,7 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       const cols: Array<[keyof typeof reset, string]> = [
         ['id', 'Id'],
         ['formattedKey', 'Auth Key'],
+        ['type', 'Api Key Type'],
       ];
 
       if (reset.type === EApiKeyType.THIRD_PARTY) {
@@ -95,6 +105,8 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       }
 
       printGrid(reset, cols);
+
+      process.exit(1);
     },
   },
   {
@@ -116,6 +128,8 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       ];
 
       printGrid(opts, cols);
+
+      process.exit(1);
     },
   },
 ];

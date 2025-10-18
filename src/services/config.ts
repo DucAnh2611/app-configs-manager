@@ -1,4 +1,5 @@
 import { COMMON_CONFIG } from '../configs';
+import { APP_CONSTANTS } from '../constants';
 import { IApp } from '../db';
 import { decrypt, encrypt } from '../helpers';
 import { ConfigRepository } from '../repositories';
@@ -61,7 +62,7 @@ export class ConfigService {
       appId: dto.appId,
       namespace: dto.namespace,
       isUse: true,
-      configs: this.encryptConfig(dto.configs),
+      configs: this.encryptConfig(this.safeConfig(dto.configs)),
       version: newVersion,
     });
 
@@ -142,7 +143,7 @@ export class ConfigService {
       dtos.map(async (dto) =>
         this.configRepository.create({
           appId: dto.appId,
-          configs: this.encryptConfig(dto.configs),
+          configs: this.encryptConfig(this.safeConfig(dto.configs)),
           isUse: dto.isUse,
           namespace: dto.namespace,
           version: dto.version,
@@ -196,5 +197,12 @@ export class ConfigService {
     );
 
     return decrypted;
+  }
+
+  private safeConfig(config: Record<string, any>) {
+    return {
+      ...config,
+      ...APP_CONSTANTS.DEFAULT_CONFIGS,
+    };
   }
 }
