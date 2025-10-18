@@ -2,6 +2,7 @@ import express from 'express';
 import { initControllers } from './controllers';
 import { AppDataSource } from './db';
 import { connectRedis, env } from './libs';
+import { ErrorHandler, ResponseHandler } from './middlewares';
 import { ApiRouter } from './routes/api';
 
 async function main() {
@@ -22,7 +23,9 @@ async function main() {
     res.json({ message: 'Hello from API' });
   });
 
-  app.use('/api', ApiRouter);
+  app.use('/api', ApiRouter, ResponseHandler());
+
+  app.use(ErrorHandler());
 
   const PORT = env.PORT;
 
