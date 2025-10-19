@@ -2,7 +2,7 @@ import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
 import { IApp } from '../db';
 import { EErrorCode, EResponseStatus } from '../enums';
-import { decrypt, encrypt, Exception } from '../helpers';
+import { decrypt, encrypt, Exception, CacheKeyGenerator } from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
   TConfigDecoded,
@@ -14,9 +14,13 @@ import {
   TConfigServiceToggleUse,
   TConfigServiceUp,
 } from '../types';
+import { CacheService } from './cache';
 
 export class ConfigService {
-  constructor(private readonly configRepository: ConfigRepository) {}
+  constructor(
+    private readonly configRepository: ConfigRepository,
+    private readonly cacheService: CacheService
+  ) {}
 
   public async history(dto: TConfigServiceHistory) {
     const configs = await this.configRepository.find({
@@ -40,6 +44,11 @@ export class ConfigService {
   }
 
   public async get(dto: TConfigServiceGet) {
+    const cacheKey = CacheKeyGenerator.config(dto.appId, dto.appNamespace);
+    const cache = await this.cacheService.get(cacheKey);
+    if (cache) {
+      return cache;
+    }
     const config = await this.configRepository.findOne({
       where: { appId: dto.appId, namespace: dto.appNamespace, isUse: true },
     });
@@ -48,10 +57,14 @@ export class ConfigService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
-    return {
+    const result = {
       ...config,
       configs: this.decryptConfig(config.configs),
     } as TConfigDecoded;
+
+    await this.cacheService.set(cacheKey, result);
+
+    return result;
   }
 
   public async up(dto: TConfigServiceUp) {
@@ -67,7 +80,12 @@ export class ConfigService {
       version: newVersion,
     });
 
-    return { ...newConfig, configs: this.decryptConfig(newConfig.configs) };
+    const result = { ...newConfig, configs: this.decryptConfig(newConfig.configs) };
+
+    const cacheKey = CacheKeyGenerator.config(dto.appId, dto.namespace);
+    await this.cacheService.delete(cacheKey);
+
+    return result;
   }
 
   public async toggleUse(dto: TConfigServiceToggleUse) {
@@ -86,6 +104,9 @@ export class ConfigService {
       { isUse: !config.isUse }
     );
 
+    const cacheKey = CacheKeyGenerator.config(dto.appId, config.namespace);
+    await this.cacheService.delete(cacheKey);
+
     return !!toggled.affected;
   }
 
@@ -99,6 +120,9 @@ export class ConfigService {
     }
 
     await this.configRepository.softDelete(config.id);
+
+    const cacheKey = CacheKeyGenerator.config(dto.appId, config.namespace);
+    await this.cacheService.delete(cacheKey);
 
     return true;
   }
@@ -119,6 +143,9 @@ export class ConfigService {
 
     await this.configRepository.save({ ...configData, isUse: true, version: newVersion });
 
+    const cacheKey = CacheKeyGenerator.config(dto.appId, config.namespace);
+    await this.cacheService.delete(cacheKey);
+
     return true;
   }
 
@@ -136,7 +163,16 @@ export class ConfigService {
       )
     );
 
-    return this.bulkUp(bulkUpPayload);
+    const result = await this.bulkUp(bulkUpPayload);
+
+    await Promise.all(
+      apps.map(app => {
+        const cacheKey = CacheKeyGenerator.config(app.id, 'dev');
+        return this.cacheService.delete(cacheKey);
+      })
+    );
+
+    return result;
   }
 
   private async bulkUp(dtos: TConfigServiceBulkUp[]) {
