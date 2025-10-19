@@ -18,14 +18,14 @@ export const initServices = async () => {
   const appService = new AppService(
     appRepository,
     cacheService,
-    new ConfigService(configRepository)
+    new ConfigService(configRepository, cacheService)
   );
   const apiKeyService = new ApiKeyService(
     apiKeyRepository,
     appService,
-    new ConfigService(configRepository)
+    new ConfigService(configRepository, cacheService)
   );
-  const configService = new ConfigService(configRepository);
+  const configService = new ConfigService(configRepository, cacheService);
 
   services = {
     apiKeyService,

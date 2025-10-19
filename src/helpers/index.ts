@@ -1,3 +1,4 @@
+export * from './cache';
 export * from './cli';
 export * from './crypto';
 export * from './format-string';
