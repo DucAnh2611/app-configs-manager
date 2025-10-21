@@ -1,4 +1,4 @@
-import { ECacheKey, CACHE_CONSTANTS } from "../enums/cache";
+import { CACHE_CONSTANTS, ECacheKey } from "../enums/cache";
 
 export class CacheKeyGenerator {
   static config(appId: string, namespace: string): string {
@@ -19,6 +19,14 @@ export class CacheKeyGenerator {
 
   static apiKey(keyId: string): string {
     return `${ECacheKey.API_KEY}_${keyId}`;
+  }
+
+  static apiKeyList(appCode: string): string {
+    return `${ECacheKey.API_KEY_LIST}_${appCode}`;
+  }
+
+  static apiKeyValidate(appCode: string, type: string): string {
+    return `${ECacheKey.API_KEY_VALIDATE}_${appCode}_${type}`;
   }
 
   static custom(...parts: Array<ECacheKey | string | number>): string {
