@@ -2,6 +2,7 @@ import { Like } from 'typeorm';
 import { IApiKey } from '../db';
 import { EApiKeyType, EErrorCode, EResponseStatus } from '../enums';
 import { Exception, generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
+import { CacheKeyGenerator } from '../helpers/cache';
 import { ApiKeyRepository } from '../repositories';
 import {
   DtoApiKeyCheckKeyType,
@@ -14,16 +15,24 @@ import {
   TJwtApiKeyPayload,
 } from '../types';
 import { AppService } from './app';
+import { CacheService } from './cache';
 import { ConfigService } from './config';
 
 export class ApiKeyService {
   constructor(
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly appService: AppService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly cacheService: CacheService
   ) {}
 
   public async validate(dto: DtoApiKeyValidate) {
+    const cacheKey = CacheKeyGenerator.apiKeyValidate(dto.appCode, dto.type);
+    const cached = await this.cacheService.get<boolean>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const apiKeys = await this.apiKeyRepository.find({
       where: {
         app: {
@@ -36,10 +45,12 @@ export class ApiKeyService {
 
     for (const apiKey of apiKeys) {
       if (verify(dto.apiKey, apiKey.key)) {
+        await this.cacheService.set(cacheKey, true, 300);
         return true;
       }
     }
 
+    await this.cacheService.set(cacheKey, false, 300); 
     return false;
   }
 
@@ -66,6 +77,9 @@ export class ApiKeyService {
       },
       updateApiKey
     );
+
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyValidate(dto.code, apiKey.type));
 
     return { ...dto, type: apiKey.type, active: updateApiKey.active };
   }
@@ -117,7 +131,13 @@ export class ApiKeyService {
   }
 
   public async list(dto: DtoApiKeyList) {
-    return this.apiKeyRepository.find({
+    const cacheKey = CacheKeyGenerator.apiKeyList(dto.code);
+    const cached = await this.cacheService.get<IApiKey[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.apiKeyRepository.find({
       where: {
         app: {
           code: Like(`%${dto.code}%`),
@@ -127,6 +147,9 @@ export class ApiKeyService {
         type: 'ASC',
       },
     });
+
+    await this.cacheService.set(cacheKey, result, 300);
+    return result;
   }
 
   public async reset(dto: DtoApiKeyReset) {
@@ -157,6 +180,9 @@ export class ApiKeyService {
       }
     );
 
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyValidate(dto.code, apiKey.type));
+
     return {
       ...apiKey,
       formattedKey: signJwt<TJwtApiKeyPayload>(
@@ -184,6 +210,9 @@ export class ApiKeyService {
 
     if (dto.isDelete) {
       await this.apiKeyRepository.softDelete({ id: dto.id });
+
+      await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
+      await this.cacheService.delete(CacheKeyGenerator.apiKeyValidate(dto.code, apiKey.type));
       return true;
     }
 
@@ -193,6 +222,9 @@ export class ApiKeyService {
     };
 
     await this.apiKeyRepository.update({ id: dto.id }, updateData);
+
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyValidate(dto.code, apiKey.type));
     return true;
   }
 

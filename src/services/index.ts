@@ -25,8 +25,9 @@ export const initServices = async () => {
   const apiKeyService = new ApiKeyService(
     apiKeyRepository,
     appService,
-    new ConfigService(configRepository, cacheService)
-  
+    new ConfigService(configRepository, cacheService),
+    cacheService
+  );
   const configService = new ConfigService(configRepository, cacheService);
   const webhookService = new WebhookService(webhookRepository);
 
@@ -46,3 +47,4 @@ export const getServices = () => {
 };
 
 export type { ApiKeyService, AppService, CacheService, ConfigService, WebhookService };
+
