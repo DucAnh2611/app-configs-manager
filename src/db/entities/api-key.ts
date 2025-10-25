@@ -1,6 +1,7 @@
 import { EntitySchema } from 'typeorm';
-import { IApp } from './app';
+import { DB_TABLES_CONSTANTS } from '../../constants';
 import { EApiKeyType } from '../../enums';
+import { IApp } from './app';
 
 export interface IApiKey {
   id: string;
@@ -18,8 +19,8 @@ export interface IApiKey {
 }
 
 export const ApiKeyEntity = new EntitySchema<IApiKey>({
-  name: 'ApiKey',
-  tableName: 'api_key',
+  name: DB_TABLES_CONSTANTS.API_KEY.NAME,
+  tableName: DB_TABLES_CONSTANTS.API_KEY.TABLE_NAME,
   columns: {
     id: {
       type: 'uuid',

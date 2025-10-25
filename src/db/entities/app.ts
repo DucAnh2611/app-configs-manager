@@ -1,4 +1,5 @@
 import { EntitySchema } from 'typeorm';
+import { DB_TABLES_CONSTANTS } from '../../constants';
 import { IApiKey } from './api-key';
 import { IConfig } from './config';
 
@@ -15,8 +16,8 @@ export interface IApp {
 }
 
 export const AppEntity = new EntitySchema<IApp>({
-  name: 'App',
-  tableName: 'apps',
+  name: DB_TABLES_CONSTANTS.APP.NAME,
+  tableName: DB_TABLES_CONSTANTS.APP.TABLE_NAME,
   columns: {
     id: {
       type: 'uuid',
