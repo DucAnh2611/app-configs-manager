@@ -1,4 +1,5 @@
 import { EntitySchema } from 'typeorm';
+import { DB_TABLES_CONSTANTS } from '../../constants';
 import { IApp } from './app';
 
 export interface IConfig {
@@ -14,8 +15,8 @@ export interface IConfig {
 }
 
 export const ConfigEntity = new EntitySchema<IConfig>({
-  name: 'Config',
-  tableName: 'configs',
+  name: DB_TABLES_CONSTANTS.CONFIG.NAME,
+  tableName: DB_TABLES_CONSTANTS.CONFIG.TABLE_NAME,
   columns: {
     id: {
       type: 'uuid',

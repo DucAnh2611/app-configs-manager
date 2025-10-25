@@ -1,5 +1,11 @@
 import { EntitySchema } from 'typeorm';
-import { EWebhookBodyType, EWebhookMethod, EWebhookTriggerOn, EWebhookTriggerType } from '../../enums/webhook';
+import { DB_TABLES_CONSTANTS } from '../../constants';
+import {
+  EWebhookBodyType,
+  EWebhookMethod,
+  EWebhookTriggerOn,
+  EWebhookTriggerType,
+} from '../../enums/webhook';
 import { IApp } from './app';
 
 export interface IWebhook {
@@ -20,8 +26,8 @@ export interface IWebhook {
 }
 
 export const WebhookEntity = new EntitySchema<IWebhook>({
-  name: 'Webhook',
-  tableName: 'webhooks',
+  name: DB_TABLES_CONSTANTS.WEBHOOK.NAME,
+  tableName: DB_TABLES_CONSTANTS.WEBHOOK.TABLE_NAME,
   columns: {
     id: {
       type: 'uuid',
