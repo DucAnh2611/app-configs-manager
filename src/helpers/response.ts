@@ -54,9 +54,13 @@ export class Exception extends AppResponse implements IAppResponse {
     }
 
     return {
-      success: true,
+      success: false,
       error: error,
     };
+  }
+
+  public toString(): string {
+    return JSON.stringify(this.resJson);
   }
 }
 

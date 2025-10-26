@@ -1,4 +1,5 @@
 import { createClient } from '@redis/client';
+import IORedis from 'ioredis';
 import { REDIS_CONFIG } from '../configs';
 
 export type Redis = ReturnType<typeof createClient>;
@@ -27,4 +28,12 @@ export const getRedis = (): Redis => {
   if (!client) throw new Error('Redis is not init!');
 
   return client;
+};
+
+export const createIORedis = () => {
+  return new IORedis({
+    host: REDIS_CONFIG.HOST,
+    port: Number(REDIS_CONFIG.PORT),
+    maxRetriesPerRequest: null,
+  });
 };

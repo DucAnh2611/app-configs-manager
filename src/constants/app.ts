@@ -2,5 +2,8 @@ export const APP_CONSTANTS = {
   DEFAULT_CONFIGS: {
     PUBLIC_KEY_LENGTH: 64,
     JWT_SECRET_API_KEY: 'default',
-  } as Record<string, any>,
+    WEBHOOK_HISTORY_CLEAN_UP_PERIOD: '1h',
+    WEBHOOK_AUTH_HEADER_NAME: 'Authorization',
+    WEBHOOK_AUTH_HEADER_FORMAT: 'Apikey {apikey}',
+  },
 };

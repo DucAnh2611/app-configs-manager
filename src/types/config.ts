@@ -1,4 +1,4 @@
-import { IConfig } from '../db';
+import { IConfig } from './entity';
 
 export type TConfigDecoded = Omit<IConfig, 'configs'> & {
   configs: Record<string, any>;
@@ -10,7 +10,7 @@ export type TConfigServiceHistory = {
 };
 
 export type TConfigServiceGet = {
-  appId: string;
+  appCode: string;
   appNamespace: string;
 };
 

@@ -1,4 +1,5 @@
-import { CACHE_CONSTANTS, ECacheKey } from "../enums/cache";
+import { CACHE_CONSTANTS } from '../constants';
+import { ECacheKey } from '../enums';
 
 export class CacheKeyGenerator {
   static config(appId: string, namespace: string): string {

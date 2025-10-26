@@ -1,9 +1,8 @@
 import { In } from 'typeorm';
-import { IApp, IConfig } from '../db';
 import { EErrorCode, EResponseStatus } from '../enums';
 import { Exception } from '../helpers';
 import { AppRepository } from '../repositories';
-import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate } from '../types';
+import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate, IApp, IConfig } from '../types';
 import { CacheService } from './cache';
 import { ConfigService } from './config';
 

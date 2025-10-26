@@ -1,18 +1,6 @@
 import { EntitySchema } from 'typeorm';
 import { DB_TABLES_CONSTANTS } from '../../constants';
-import { IApp } from './app';
-
-export interface IConfig {
-  id: string;
-  appId: string;
-  configs: string;
-  version: number;
-  namespace: string;
-  isUse: boolean;
-  createdAt: Date;
-  deletedAt: Date | null;
-  app?: IApp;
-}
+import { IConfig } from '../../types';
 
 export const ConfigEntity = new EntitySchema<IConfig>({
   name: DB_TABLES_CONSTANTS.CONFIG.NAME,
@@ -58,7 +46,7 @@ export const ConfigEntity = new EntitySchema<IConfig>({
   relations: {
     app: {
       type: 'many-to-one',
-      target: 'App',
+      target: DB_TABLES_CONSTANTS.APP.NAME,
       joinColumn: { name: 'appId' },
       onDelete: 'CASCADE',
     },

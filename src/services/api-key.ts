@@ -1,5 +1,4 @@
 import { Like } from 'typeorm';
-import { IApiKey } from '../db';
 import { EApiKeyType, EErrorCode, EResponseStatus } from '../enums';
 import { Exception, generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
 import { CacheKeyGenerator } from '../helpers/cache';
@@ -12,6 +11,7 @@ import {
   DtoApiKeyToggle,
   DtoApiKeyUpdate,
   DtoApiKeyValidate,
+  IApiKey,
   TJwtApiKeyPayload,
 } from '../types';
 import { AppService } from './app';
@@ -50,7 +50,7 @@ export class ApiKeyService {
       }
     }
 
-    await this.cacheService.set(cacheKey, false, 300); 
+    await this.cacheService.set(cacheKey, false, 300);
     return false;
   }
 
@@ -93,7 +93,7 @@ export class ApiKeyService {
     const key = generateBytes(Number(dto.length));
 
     const config = await this.configService.get({
-      appId: app.id,
+      appCode: app.code,
       appNamespace: dto.namespace,
     });
 
@@ -166,7 +166,7 @@ export class ApiKeyService {
     const key = generateBytes(Number(dto.length));
 
     const config = await this.configService.get({
-      appId: app.id,
+      appCode: app.code,
       appNamespace: dto.namespace,
     });
 
@@ -267,7 +267,7 @@ export class ApiKeyService {
 
     try {
       const config = await this.configService.get({
-        appId: app.id,
+        appCode: app.code,
         appNamespace: namespace,
       });
 

@@ -6,24 +6,7 @@ import {
   EWebhookTriggerOn,
   EWebhookTriggerType,
 } from '../../enums/webhook';
-import { IApp } from './app';
-
-export interface IWebhook {
-  id: string;
-  appId: string;
-  name: string;
-  triggerType: EWebhookTriggerType;
-  triggerOn: EWebhookTriggerOn;
-  targetUrl: string;
-  method: EWebhookMethod;
-  authKey?: string | null;
-  bodyType: EWebhookBodyType;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt?: Date | null;
-  app?: IApp;
-}
+import { IWebhook } from '../../types';
 
 export const WebhookEntity = new EntitySchema<IWebhook>({
   name: DB_TABLES_CONSTANTS.WEBHOOK.NAME,
@@ -45,7 +28,6 @@ export const WebhookEntity = new EntitySchema<IWebhook>({
     triggerType: {
       type: 'enum',
       enum: EWebhookTriggerType,
-      default: EWebhookTriggerType.CHANGE,
     },
     triggerOn: {
       type: 'enum',
@@ -65,6 +47,8 @@ export const WebhookEntity = new EntitySchema<IWebhook>({
     bodyType: {
       type: 'enum',
       enum: EWebhookBodyType,
+      nullable: true,
+      default: null,
     },
     isActive: {
       type: 'boolean',
@@ -87,9 +71,15 @@ export const WebhookEntity = new EntitySchema<IWebhook>({
   relations: {
     app: {
       type: 'many-to-one',
-      target: 'App',
+      target: DB_TABLES_CONSTANTS.APP.NAME,
       joinColumn: { name: 'appId' },
       onDelete: 'CASCADE',
+    },
+    hitories: {
+      type: 'one-to-many',
+      target: DB_TABLES_CONSTANTS.WEBHOOK_HISTORY.NAME,
+      inverseSide: 'webhook',
+      cascade: true,
     },
   },
 });

@@ -46,3 +46,16 @@ export type TResponseValidation = {
     | undefined;
   children: ValidationError[] | undefined;
 };
+
+export type TPagination = {
+  // default page = 1
+  page: number;
+
+  // default size = 10
+  size: number;
+};
+
+export type TSort = {
+  // default soart = "", field:<1, -1>|field:<1, -1>
+  sort: string;
+};

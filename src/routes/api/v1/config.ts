@@ -38,10 +38,9 @@ ConfigRouter.get(
     async (req: TRequestAuth) => {
       const { configController } = getController();
 
-      const { appId } = req.apiKey;
-      const { namespace } = req.appSign;
+      const { namespace, code } = req.appSign;
 
-      const data = await configController.get({ appId, appNamespace: namespace });
+      const data = await configController.get({ appCode: code, appNamespace: namespace });
 
       return data;
     },
