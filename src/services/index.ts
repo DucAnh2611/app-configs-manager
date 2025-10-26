@@ -1,9 +1,19 @@
-import { apiKeyRepository, appRepository, configRepository, webhookRepository } from '../repositories';
+import Redis from 'ioredis';
+import {
+  apiKeyRepository,
+  appRepository,
+  configRepository,
+  webhookRepository,
+  webhoookHistoryRepository,
+} from '../repositories';
 import { ApiKeyService } from './api-key';
 import { AppService } from './app';
 import { CacheService } from './cache';
 import { ConfigService } from './config';
+import { CronService } from './cron';
+import { QueueService } from './queue';
 import { WebhookService } from './webhook';
+import { WebhookHistoryService } from './webhook-history';
 
 export type Services = {
   cacheService: CacheService;
@@ -11,25 +21,33 @@ export type Services = {
   apiKeyService: ApiKeyService;
   configService: ConfigService;
   webhookService: WebhookService;
+  webhookHistoryService: WebhookHistoryService;
+  queueService: QueueService;
+  cronService: CronService;
 };
 
 let services: Services | null = null;
 
-export const initServices = async () => {
+export const initServices = async ({ ioRedis }: { ioRedis: Redis }) => {
   const cacheService = new CacheService();
-  const appService = new AppService(
-    appRepository,
-    cacheService,
-    new ConfigService(configRepository, cacheService)
-  );
+  const queueService = new QueueService(ioRedis);
+  const cronService = new CronService(queueService);
+
+  const configService = new ConfigService(configRepository, cacheService);
+  const appService = new AppService(appRepository, cacheService, configService);
   const apiKeyService = new ApiKeyService(
     apiKeyRepository,
     appService,
-    new ConfigService(configRepository, cacheService),
+    configService,
     cacheService
   );
-  const configService = new ConfigService(configRepository, cacheService);
   const webhookService = new WebhookService(webhookRepository);
+  const webhookHistoryService = new WebhookHistoryService(
+    webhoookHistoryRepository,
+    webhookService,
+    configService,
+    queueService
+  );
 
   services = {
     apiKeyService,
@@ -37,6 +55,9 @@ export const initServices = async () => {
     appService,
     configService,
     webhookService,
+    webhookHistoryService,
+    queueService,
+    cronService,
   };
 };
 
@@ -46,5 +67,14 @@ export const getServices = () => {
   return services;
 };
 
-export type { ApiKeyService, AppService, CacheService, ConfigService, WebhookService };
+export type {
+  ApiKeyService,
+  AppService,
+  CacheService,
+  ConfigService,
+  CronService,
+  QueueService,
+  WebhookHistoryService,
+  WebhookService
+};
 

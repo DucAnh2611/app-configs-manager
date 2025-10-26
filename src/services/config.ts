@@ -1,10 +1,10 @@
 import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
-import { IApp } from '../db';
 import { EErrorCode, EResponseStatus } from '../enums';
-import { decrypt, encrypt, Exception, CacheKeyGenerator } from '../helpers';
+import { CacheKeyGenerator, decrypt, encrypt, Exception } from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
+  IApp,
   TConfigDecoded,
   TConfigServiceBulkUp,
   TConfigServiceGet,
@@ -43,14 +43,15 @@ export class ConfigService {
     return configs;
   }
 
-  public async get(dto: TConfigServiceGet) {
-    const cacheKey = CacheKeyGenerator.config(dto.appId, dto.appNamespace);
+  public async get(dto: TConfigServiceGet): Promise<TConfigDecoded> {
+    const cacheKey = CacheKeyGenerator.config(dto.appCode, dto.appNamespace);
     const cache = await this.cacheService.get(cacheKey);
     if (cache) {
       return cache;
     }
+
     const config = await this.configRepository.findOne({
-      where: { appId: dto.appId, namespace: dto.appNamespace, isUse: true },
+      where: { app: { code: dto.appCode }, namespace: dto.appNamespace, isUse: true },
     });
 
     if (!config) {
@@ -59,7 +60,7 @@ export class ConfigService {
 
     const result = {
       ...config,
-      configs: this.decryptConfig(config.configs),
+      configs: this.safeConfig(this.decryptConfig(config.configs)),
     } as TConfigDecoded;
 
     await this.cacheService.set(cacheKey, result);
@@ -181,7 +182,7 @@ export class ConfigService {
     const result = await this.bulkUp(bulkUpPayload);
 
     await Promise.all(
-      apps.map(app => {
+      apps.map((app) => {
         const cacheKey = CacheKeyGenerator.config(app.id, 'dev');
         return this.cacheService.delete(cacheKey);
       })

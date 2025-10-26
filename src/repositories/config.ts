@@ -1,5 +1,6 @@
 import { Repository } from 'typeorm';
-import { AppDataSource, ConfigEntity, IConfig } from '../db';
+import { AppDataSource, ConfigEntity } from '../db';
+import { IConfig } from '../types';
 
 export type ConfigRepository = Repository<IConfig>;
 

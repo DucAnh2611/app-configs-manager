@@ -1,5 +1,6 @@
 import { Repository } from 'typeorm';
-import { AppDataSource, AppEntity, IApp } from '../db';
+import { AppDataSource, AppEntity } from '../db';
+import { IApp } from '../types';
 
 export type AppRepository = Repository<IApp>;
 

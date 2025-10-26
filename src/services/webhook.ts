@@ -1,20 +1,25 @@
 import { EErrorCode, EResponseStatus } from '../enums';
+import {
+  EWebhookBodyType,
+  EWebhookMethod,
+  EWebhookTriggerOn,
+  EWebhookTriggerType,
+} from '../enums/webhook';
 import { Exception } from '../helpers';
 import { WebhookRepository } from '../repositories';
 import {
-  TWebhookServiceRegister,
-  TWebhookServiceUpdate,
-  TWebhookServiceList,
-  TWebhookServiceToggle,
+  IWebhook,
   TWebhookServiceDelete,
+  TWebhookServiceList,
+  TWebhookServiceRegister,
+  TWebhookServiceToggle,
+  TWebhookServiceUpdate,
 } from '../types';
-import { EWebhookBodyType, EWebhookTriggerType, EWebhookTriggerOn, EWebhookMethod } from '../enums/webhook';
 
 export class WebhookService {
   constructor(private readonly webhookRepository: WebhookRepository) {}
 
   public async register(dto: TWebhookServiceRegister) {
-
     const existing = await this.webhookRepository.findOne({
       where: {
         appId: dto.appId,
@@ -27,7 +32,7 @@ export class WebhookService {
     if (existing) {
       throw new Exception(EResponseStatus.BadRequest, EErrorCode.WEBHOOK_ALREADY_EXIST);
     }
-    
+
     const webhook = await this.webhookRepository.save({
       appId: dto.appId,
       name: dto.name,
@@ -97,10 +102,7 @@ export class WebhookService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.WEBHOOK_NOT_EXIST);
     }
 
-    const updated = await this.webhookRepository.update(
-      { id: dto.id },
-      { isActive: dto.isActive }
-    );
+    const updated = await this.webhookRepository.update({ id: dto.id }, { isActive: dto.isActive });
 
     return !!updated.affected;
   }
@@ -117,5 +119,14 @@ export class WebhookService {
     await this.webhookRepository.softDelete({ id: dto.id });
 
     return true;
+  }
+
+  public async getById(id: string): Promise<IWebhook> {
+    const exist = await this.webhookRepository.findOneBy({ id });
+    if (!exist) {
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.WEBHOOK_NOT_EXIST);
+    }
+
+    return exist;
   }
 }

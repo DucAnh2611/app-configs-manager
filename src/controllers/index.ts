@@ -1,4 +1,4 @@
-import { getServices, initServices } from '../services';
+import { getServices } from '../services';
 import { ApiKeyController } from './api-key';
 import { AppController } from './app';
 import { ConfigController } from './config';
@@ -12,8 +12,6 @@ export type Controllers = {
 let controllers: Controllers | null = null;
 
 export const initControllers = async () => {
-  initServices();
-
   const { apiKeyService, appService, configService } = getServices();
 
   const apiKeyController = new ApiKeyController(apiKeyService);

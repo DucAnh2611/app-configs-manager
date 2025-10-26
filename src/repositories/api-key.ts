@@ -1,5 +1,6 @@
 import { Repository } from 'typeorm';
-import { ApiKeyEntity, AppDataSource, IApiKey } from '../db';
+import { ApiKeyEntity, AppDataSource } from '../db';
+import { IApiKey } from '../types';
 
 export type ApiKeyRepository = Repository<IApiKey>;
 

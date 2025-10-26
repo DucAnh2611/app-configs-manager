@@ -1,8 +1,7 @@
 import { Command } from 'commander';
-import { IApp } from '../db';
 import { buildCliCommand, ICliCommand, printAppTable } from '../helpers';
 import { AppService, getServices } from '../services';
-import { DtoAppCreate, DtoAppDetail, DtoAppUpdate } from '../types';
+import { DtoAppCreate, DtoAppDetail, DtoAppUpdate, IApp } from '../types';
 
 const CommandPrefix = 'app';
 
