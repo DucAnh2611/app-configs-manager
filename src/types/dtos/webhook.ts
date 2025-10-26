@@ -1,19 +1,12 @@
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, IsUrl } from 'class-validator';
 import {
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUUID,
-  IsUrl,
-  IsBoolean,
-} from 'class-validator';
-import { EWebhookBodyType, EWebhookMethod, EWebhookTriggerOn, EWebhookTriggerType } from '../../enums/webhook';
+  EWebhookBodyType,
+  EWebhookMethod,
+  EWebhookTriggerOn,
+  EWebhookTriggerType,
+} from '../../enums/webhook';
 
 export class DtoWebhookRegister {
-  @IsNotEmpty()
-  @IsUUID()
-  appId: string;
-
   @IsNotEmpty()
   @IsString()
   name: string;
@@ -27,7 +20,7 @@ export class DtoWebhookRegister {
   triggerOn: EWebhookTriggerOn;
 
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl({ host_whitelist: ['localhost', '127.0.0.1'] })
   targetUrl: string;
 
   @IsNotEmpty()
@@ -43,11 +36,7 @@ export class DtoWebhookRegister {
   bodyType?: EWebhookBodyType;
 }
 
-export class DtoWebhookUpdate {
-  @IsNotEmpty()
-  @IsUUID()
-  id: string;
-
+export class DtoWebhookUpdateBody {
   @IsOptional()
   @IsString()
   name?: string;
@@ -61,7 +50,7 @@ export class DtoWebhookUpdate {
   triggerOn?: EWebhookTriggerOn;
 
   @IsOptional()
-  @IsUrl()
+  @IsUrl({ host_whitelist: ['localhost', '127.0.0.1'] })
   targetUrl?: string;
 
   @IsOptional()
@@ -77,20 +66,16 @@ export class DtoWebhookUpdate {
   bodyType?: EWebhookBodyType;
 }
 
-export class DtoWebhookList {
+export class DtoWebhookUpdateParams {
   @IsNotEmpty()
   @IsUUID()
-  appId: string;
+  id: string;
 }
 
 export class DtoWebhookToggle {
   @IsNotEmpty()
   @IsUUID()
   id: string;
-
-  @IsNotEmpty()
-  @IsBoolean()
-  isActive: boolean;
 }
 
 export class DtoWebhookDelete {
@@ -99,20 +84,8 @@ export class DtoWebhookDelete {
   id: string;
 }
 
-export class DtoWebhookFire {
+export class DtoWebhookGet {
   @IsNotEmpty()
-  @IsEnum(EWebhookTriggerType)
-  triggerType: EWebhookTriggerType;
-
-  @IsNotEmpty()
-  @IsEnum(EWebhookTriggerOn)
-  triggerOn: EWebhookTriggerOn;
-
-  @IsNotEmpty()
-  @IsString()
-  appCode: string;
-
-  @IsNotEmpty()
-  @IsString()
-  namespace: string;
+  @IsUUID()
+  id: string;
 }

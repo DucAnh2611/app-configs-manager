@@ -57,9 +57,9 @@ ConfigRouter.post(
       const { configController } = getController();
 
       const { appId } = req.apiKey;
-      const { namespace } = req.appSign;
+      const { namespace, code } = req.appSign;
 
-      const data = await configController.up({ appId, namespace, ...req.body });
+      const data = await configController.up({ appId, namespace, ...req.body, appCode: code });
 
       return data;
     },
@@ -76,9 +76,10 @@ ConfigRouter.post(
       const { configController } = getController();
 
       const { appId } = req.apiKey;
+      const { namespace } = req.appSign;
       const { id: configId } = req.params as any as DtoConfigToggleUse;
 
-      const data = await configController.toggleUse({ configId, appId });
+      const data = await configController.toggleUse({ configId, appId, namespace });
 
       return data;
     },

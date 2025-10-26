@@ -1,5 +1,7 @@
 export enum EApiKeyType {
   CONFIG = 'CONFIG',
   UP_CONFIG = 'UP_CONFIG',
+  WEBHOOK = 'WEBHOOK',
+  UP_WEBHOOK = 'UP_WEBHOOK',
   THIRD_PARTY = 'THIRD_PARTY',
 }

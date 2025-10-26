@@ -30,6 +30,20 @@ async function main() {
     res.json({ message: 'Hello from API' });
   });
 
+  app.get('/test', (req, res) => {
+    return res.json({
+      received: true,
+      payload: { params: req.params, query: req.query },
+    });
+  });
+
+  app.post('/test', (req, res) => {
+    return res.json({
+      received: true,
+      payload: { body: req.body, params: req.params, query: req.query },
+    });
+  });
+
   app.use('/api', ApiRouter, ResponseHandler());
 
   app.use(ErrorHandler());

@@ -10,6 +10,8 @@ import { TPagination, TSort } from './common';
 
 export type TWebhookServiceRegister = {
   appId: string;
+  appCode: string;
+  appNamespace: string;
   name: string;
   triggerType?: EWebhookTriggerType;
   triggerOn: EWebhookTriggerOn;
@@ -22,6 +24,8 @@ export type TWebhookServiceRegister = {
 export type TWebhookServiceUpdate = {
   id: string;
   appId: string;
+  appCode: string;
+  appNamespace: string;
   name?: string;
   triggerType?: EWebhookTriggerType;
   triggerOn?: EWebhookTriggerOn;
@@ -38,7 +42,6 @@ export type TWebhookServiceList = {
 export type TWebhookServiceToggle = {
   id: string;
   appId: string;
-  isActive: boolean;
 };
 
 export type TWebhookServiceDelete = {
@@ -46,11 +49,19 @@ export type TWebhookServiceDelete = {
   appId: string;
 };
 
-export type TWebhookServiceFire = {
-  triggerType: string;
-  triggerOn: string;
+export type TWebhookServiceTrigger = {
+  triggerType: EWebhookTriggerType;
+  triggerOn: EWebhookTriggerOn;
+  appId: string;
   appCode: string;
-  namespace: string;
+  data: any;
+};
+
+export type TWebhookServiceGet = {
+  id: string;
+  appId: string;
+  appCode: string;
+  appNamespace: string;
 };
 
 export type TWebhookHistoryLog = {

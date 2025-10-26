@@ -7,7 +7,7 @@ export class CacheService {
     this.cache = getRedis();
   }
 
-  async set(key: string, value: any, ttlSeconds?: number) {
+  async set(key: string, value: any, ttlSeconds: number = 60) {
     await this.cache.sendCommand(['JSON.SET', key, '$', JSON.stringify(value)]);
     if (ttlSeconds) await this.cache.expire(key, ttlSeconds);
   }

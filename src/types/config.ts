@@ -16,6 +16,7 @@ export type TConfigServiceGet = {
 
 export type TConfigServiceUp = {
   appId: string;
+  appCode: string;
   namespace: string;
   configs: Record<string, any>;
 };
@@ -23,6 +24,7 @@ export type TConfigServiceUp = {
 export type TConfigServiceToggleUse = {
   appId: string;
   configId: string;
+  namespace: string;
 };
 
 export type TConfigServiceRollback = {

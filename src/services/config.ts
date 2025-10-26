@@ -1,6 +1,7 @@
+import { Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
-import { EErrorCode, EResponseStatus } from '../enums';
+import { EErrorCode, EResponseStatus, EWebhookTriggerOn, EWebhookTriggerType } from '../enums';
 import { CacheKeyGenerator, decrypt, encrypt, Exception } from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
@@ -15,11 +16,13 @@ import {
   TConfigServiceUp,
 } from '../types';
 import { CacheService } from './cache';
+import { WebhookService } from './webhook';
 
 export class ConfigService {
   constructor(
     private readonly configRepository: ConfigRepository,
-    private readonly cacheService: CacheService
+    private readonly cacheService: CacheService,
+    private readonly webhookService: WebhookService
   ) {}
 
   public async history(dto: TConfigServiceHistory) {
@@ -35,7 +38,6 @@ export class ConfigService {
         appId: false,
       },
       order: {
-        isUse: 'DESC',
         version: 'DESC',
       },
     });
@@ -60,7 +62,7 @@ export class ConfigService {
 
     const result = {
       ...config,
-      configs: this.safeConfig(this.decryptConfig(config.configs)),
+      configs: ConfigService.safeConfig(ConfigService.decryptConfig(config.configs)),
     } as TConfigDecoded;
 
     await this.cacheService.set(cacheKey, result);
@@ -77,40 +79,63 @@ export class ConfigService {
       appId: dto.appId,
       namespace: dto.namespace,
       isUse: true,
-      configs: this.encryptConfig(this.safeConfig(dto.configs)),
+      configs: ConfigService.encryptConfig(ConfigService.safeConfig(dto.configs)),
       version: newVersion,
     });
 
-    const result = { ...newConfig, configs: this.decryptConfig(newConfig.configs) };
+    const result = { ...newConfig, configs: ConfigService.decryptConfig(newConfig.configs) };
 
-    const cacheKey = CacheKeyGenerator.config(dto.appId, dto.namespace);
+    const cacheKey = CacheKeyGenerator.config(dto.appCode, dto.namespace);
     await this.cacheService.set(cacheKey, result);
+
+    await this.webhookService.trigger({
+      appCode: dto.appCode,
+      appId: dto.appId,
+      data: result,
+      triggerOn: EWebhookTriggerOn.CONFIG,
+      triggerType: EWebhookTriggerType.CHANGE,
+    });
+
     return result;
   }
 
   public async toggleUse(dto: TConfigServiceToggleUse) {
     const config = await this.configRepository.findOne({
-      where: { id: dto.configId, appId: dto.appId },
+      where: { id: dto.configId, appId: dto.appId, namespace: dto.namespace },
+      relations: { app: true },
     });
 
-    if (!config) {
+    if (!config || !config.app) {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
     if (!config.isUse) await this.unusePreviousVersion(config.appId, config.namespace);
+    else {
+      const activeCount = await this.configRepository.count({
+        where: {
+          appId: config.appId,
+          namespace: config.namespace,
+          id: Not(config.id),
+          isUse: true,
+        },
+      });
+
+      if (!activeCount) {
+        throw new Exception(EResponseStatus.BadRequest, EErrorCode.CONFIG_HAVE_NO_ACTIVE);
+      }
+    }
 
     const toggled = await this.configRepository.update(
       { id: dto.configId, appId: dto.appId },
       { isUse: !config.isUse }
     );
 
-    const cacheKey = CacheKeyGenerator.config(dto.appId, config.namespace);
-    const activeConfig = await this.configRepository.findOne({
-      where: { appId: dto.appId, namespace: config.namespace, isUse: true },
-    });
+    const cacheKey = CacheKeyGenerator.config(config.app.code, config.namespace);
 
-    if (activeConfig) {
-      const cacheValue = { ...activeConfig, configs: this.decryptConfig(activeConfig.configs) };
+    if (!config.isUse) {
+      const { app, ...configData } = config;
+
+      const cacheValue = { ...configData, configs: ConfigService.decryptConfig(config.configs) };
       await this.cacheService.set(cacheKey, cacheValue);
     } else {
       await this.cacheService.delete(cacheKey);
@@ -122,15 +147,16 @@ export class ConfigService {
   public async remove(dto: TConfigServiceRemove) {
     const config = await this.configRepository.findOne({
       where: { id: dto.configId, appId: dto.appId },
+      relations: { app: true },
     });
 
-    if (!config) {
+    if (!config || !config.app) {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
     await this.configRepository.softDelete(config.id);
 
-    const cacheKey = CacheKeyGenerator.config(dto.appId, config.namespace);
+    const cacheKey = CacheKeyGenerator.config(config.app.code, config.namespace);
     await this.cacheService.delete(cacheKey);
 
     return true;
@@ -139,9 +165,10 @@ export class ConfigService {
   public async rollback(dto: TConfigServiceRollback) {
     const config = await this.configRepository.findOne({
       where: { id: dto.configId, appId: dto.appId },
+      relations: { app: true },
     });
 
-    if (!config) {
+    if (!config || !config.app) {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
@@ -156,10 +183,10 @@ export class ConfigService {
       version: newVersion,
     });
 
-    const cacheKey = CacheKeyGenerator.config(config.appId, config.namespace);
+    const cacheKey = CacheKeyGenerator.config(config.app.code, config.namespace);
     await this.cacheService.set(cacheKey, {
       ...result,
-      configs: this.decryptConfig(result.configs),
+      configs: ConfigService.decryptConfig(result.configs),
     });
 
     return true;
@@ -196,7 +223,7 @@ export class ConfigService {
       dtos.map(async (dto) =>
         this.configRepository.create({
           appId: dto.appId,
-          configs: this.encryptConfig(this.safeConfig(dto.configs)),
+          configs: await ConfigService.encryptConfig(ConfigService.safeConfig(dto.configs)),
           isUse: dto.isUse,
           namespace: dto.namespace,
           version: dto.version,
@@ -231,7 +258,7 @@ export class ConfigService {
     return currentVersion.version + 1;
   }
 
-  private encryptConfig(config: Record<string, any>) {
+  public static encryptConfig(config: Record<string, any>) {
     const encypted = encrypt(
       config,
       COMMON_CONFIG.APP_CONFIG_ENCRYPT_SECRET_KEY,
@@ -241,7 +268,7 @@ export class ConfigService {
     return encypted.encryptedPayload;
   }
 
-  private decryptConfig(config: string) {
+  public static decryptConfig(config: string) {
     const decrypted = decrypt(
       config,
       COMMON_CONFIG.APP_CONFIG_ENCRYPT_SECRET_KEY,
@@ -251,7 +278,7 @@ export class ConfigService {
     return decrypted;
   }
 
-  private safeConfig(config: Record<string, any>) {
+  public static safeConfig(config: Record<string, any>) {
     return {
       ...config,
       ...APP_CONSTANTS.DEFAULT_CONFIGS,
