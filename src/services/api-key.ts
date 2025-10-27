@@ -265,17 +265,13 @@ export class ApiKeyService {
 
     if (!app) return null;
 
-    try {
-      const config = await this.configService.get({
-        appCode: app.code,
-        appNamespace: namespace,
-      });
+    const config = await this.configService.get({
+      appCode: app.code,
+      appNamespace: namespace,
+    });
 
-      const { JWT_SECRET_API_KEY } = config.configs;
+    const { JWT_SECRET_API_KEY } = config.configs;
 
-      return verifyJwt<TJwtApiKeyPayload>(token, JWT_SECRET_API_KEY);
-    } catch {
-      return null;
-    }
+    return verifyJwt<TJwtApiKeyPayload>(token, JWT_SECRET_API_KEY);
   }
 }

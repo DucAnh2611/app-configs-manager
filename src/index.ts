@@ -2,7 +2,7 @@ import express from 'express';
 import { initControllers } from './controllers';
 import { initCronJob } from './cron';
 import { AppDataSource } from './db';
-import { connectRedis, createIORedis, env } from './libs';
+import { connectRedis, env } from './libs';
 import { ErrorHandler, ResponseHandler } from './middlewares';
 import { ApiRouter, WebhookRouter } from './routes';
 import { initServices } from './services';
@@ -16,8 +16,7 @@ async function main() {
   await AppDataSource.initialize();
   await connectRedis();
 
-  const ioRedis = createIORedis();
-  initServices({ ioRedis });
+  initServices();
   initControllers();
 
   initCronJob();

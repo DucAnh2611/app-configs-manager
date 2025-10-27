@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import { getRedis } from '../libs';
 import {
   apiKeyRepository,
   appRepository,
@@ -28,9 +28,9 @@ export type Services = {
 
 let services: Services | null = null;
 
-export const initServices = async ({ ioRedis }: { ioRedis: Redis }) => {
+export const initServices = async () => {
   const cacheService = new CacheService();
-  const queueService = new QueueService(ioRedis);
+  const queueService = new QueueService(getRedis());
   const cronService = new CronService(queueService);
 
   const webhookHistoryService = new WebhookHistoryService(
