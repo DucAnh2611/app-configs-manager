@@ -109,7 +109,7 @@ export class AppService {
       appId: saved.id,
       appCode: saved.code,
       configs: {},
-      namespace: dto.namespace,
+      appNamespace: dto.namespace,
     });
 
     return saved;

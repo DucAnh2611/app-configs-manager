@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { EErrorCode, EResponseStatus, EWebhookBodyType, EWebhookMethod } from '../enums';
-import { bindStringFormat, Exception } from '../helpers';
+import { bindStringFormat, Exception, printGrid } from '../helpers';
 
 type TOptions = {
   authHeader?: {
@@ -105,7 +105,31 @@ const getAxiosInstance = ({
   axiosInstance.interceptors.response.use(
     (response: AxiosResponse) => {
       if (response.status > 299 || response.status < 200) {
-        console.error({ axiosError: response.data });
+        let detail = response.data;
+
+        if (typeof response.data !== 'object') {
+          detail = {
+            error: 'Unknown Error!',
+            raw: response.data,
+          };
+        }
+
+        printGrid(
+          {
+            type: 'Axios',
+            layer: 'Response',
+            state: 'OnFulfilled',
+            detail: JSON.stringify(detail),
+            path: response.config.url,
+          },
+          [
+            ['type', 'Error Type'],
+            ['layer', 'Layer'],
+            ['state', 'Layer State'],
+            ['detail', 'Detail'],
+            ['path', 'Url'],
+          ]
+        );
 
         throw new Exception(response.status, EErrorCode.API_CALL_ERROR);
       }
@@ -114,8 +138,31 @@ const getAxiosInstance = ({
     },
     async (error: AxiosError) => {
       const { status = EResponseStatus.InternalServerError, data } = error.response || {};
+      let detail = error.response?.data;
 
-      console.error({ axiosError: error.response?.data });
+      if (!error.response || typeof error.response.data !== 'object') {
+        detail = {
+          error: 'Unknown Error!',
+          raw: error.response?.data,
+        };
+      }
+
+      printGrid(
+        {
+          type: 'Axios',
+          layer: 'Response',
+          state: 'OnFulfilled',
+          detail: JSON.stringify(detail),
+          path: error.response?.config.url || 'Unknown URL!',
+        },
+        [
+          ['type', 'Error Type'],
+          ['layer', 'Layer'],
+          ['state', 'Layer State'],
+          ['detail', 'Detail'],
+          ['path', 'Url'],
+        ]
+      );
 
       throw new Exception(status, EErrorCode.API_CALL_ERROR);
     }

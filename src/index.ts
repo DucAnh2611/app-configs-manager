@@ -4,7 +4,7 @@ import { initCronJob } from './cron';
 import { AppDataSource } from './db';
 import { connectRedis, createIORedis, env } from './libs';
 import { ErrorHandler, ResponseHandler } from './middlewares';
-import { ApiRouter } from './routes';
+import { ApiRouter, WebhookRouter } from './routes';
 import { initServices } from './services';
 
 async function main() {
@@ -30,19 +30,7 @@ async function main() {
     res.json({ message: 'Hello from API' });
   });
 
-  app.get('/test', (req, res) => {
-    return res.json({
-      received: true,
-      payload: { params: req.params, query: req.query },
-    });
-  });
-
-  app.post('/test', (req, res) => {
-    return res.json({
-      received: true,
-      payload: { body: req.body, params: req.params, query: req.query },
-    });
-  });
+  app.use('/webhook', WebhookRouter);
 
   app.use('/api', ApiRouter, ResponseHandler());
 

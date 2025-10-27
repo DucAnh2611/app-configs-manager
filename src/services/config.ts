@@ -1,4 +1,4 @@
-import { Not } from 'typeorm';
+import { In, Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
 import { EErrorCode, EResponseStatus, EWebhookTriggerOn, EWebhookTriggerType } from '../enums';
@@ -6,6 +6,7 @@ import { CacheKeyGenerator, decrypt, encrypt, Exception } from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
   IApp,
+  IConfig,
   TConfigDecoded,
   TConfigServiceBulkUp,
   TConfigServiceGet,
@@ -14,6 +15,7 @@ import {
   TConfigServiceRollback,
   TConfigServiceToggleUse,
   TConfigServiceUp,
+  TConfigUseCache,
 } from '../types';
 import { CacheService } from './cache';
 import { WebhookService } from './webhook';
@@ -26,6 +28,10 @@ export class ConfigService {
   ) {}
 
   public async history(dto: TConfigServiceHistory) {
+    const cacheKey = this.getCacheKey(dto, this.history.name);
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
     const configs = await this.configRepository.find({
       where: { appId: dto.appId, namespace: dto.appNamespace },
       select: {
@@ -42,11 +48,13 @@ export class ConfigService {
       },
     });
 
-    return configs;
+    const cachedList = await this.cacheList(configs, dto, this.history.name);
+
+    return cachedList;
   }
 
   public async get(dto: TConfigServiceGet): Promise<TConfigDecoded> {
-    const cacheKey = CacheKeyGenerator.config(dto.appCode, dto.appNamespace);
+    const cacheKey = this.getCacheKey(dto);
     const cache = await this.cacheService.get(cacheKey);
     if (cache) {
       return cache;
@@ -60,48 +68,37 @@ export class ConfigService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
-    const result = {
-      ...config,
-      configs: ConfigService.safeConfig(ConfigService.decryptConfig(config.configs)),
-    } as TConfigDecoded;
+    const cached = await this.cache(config, dto);
 
-    await this.cacheService.set(cacheKey, result);
-
-    return result;
+    return cached;
   }
 
   public async up(dto: TConfigServiceUp) {
-    const newVersion = await this.getNewVersion(dto.appId, dto.namespace);
+    const newVersion = await this.getNewVersion(dto.appId, dto.appNamespace);
 
-    await this.unusePreviousVersion(dto.appId, dto.namespace);
+    await this.unusePreviousVersion(dto.appId, dto.appNamespace);
 
-    const newConfig = await this.configRepository.save({
+    const entity = this.configRepository.create({
       appId: dto.appId,
-      namespace: dto.namespace,
+      namespace: dto.appNamespace,
       isUse: true,
       configs: ConfigService.encryptConfig(ConfigService.safeConfig(dto.configs)),
       version: newVersion,
     });
 
-    const result = { ...newConfig, configs: ConfigService.decryptConfig(newConfig.configs) };
+    const newConfig = await this.configRepository.save(entity);
 
-    const cacheKey = CacheKeyGenerator.config(dto.appCode, dto.namespace);
-    await this.cacheService.set(cacheKey, result);
+    const [cached] = await Promise.all([
+      this.cache(newConfig, dto),
+      this.triggerWebhookOnChange(newConfig, dto.appCode, dto.appId, EWebhookTriggerType.CHANGE),
+    ]);
 
-    await this.webhookService.trigger({
-      appCode: dto.appCode,
-      appId: dto.appId,
-      data: result,
-      triggerOn: EWebhookTriggerOn.CONFIG,
-      triggerType: EWebhookTriggerType.CHANGE,
-    });
-
-    return result;
+    return cached;
   }
 
   public async toggleUse(dto: TConfigServiceToggleUse) {
     const config = await this.configRepository.findOne({
-      where: { id: dto.configId, appId: dto.appId, namespace: dto.namespace },
+      where: { id: dto.configId, appId: dto.appId, namespace: dto.appNamespace },
       relations: { app: true },
     });
 
@@ -109,39 +106,29 @@ export class ConfigService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
-    if (!config.isUse) await this.unusePreviousVersion(config.appId, config.namespace);
-    else {
-      const activeCount = await this.configRepository.count({
-        where: {
-          appId: config.appId,
-          namespace: config.namespace,
-          id: Not(config.id),
-          isUse: true,
-        },
-      });
+    config.isUse = !config.isUse;
 
-      if (!activeCount) {
-        throw new Exception(EResponseStatus.BadRequest, EErrorCode.CONFIG_HAVE_NO_ACTIVE);
-      }
-    }
+    if (config.isUse) await this.unusePreviousVersion(config.appId, config.namespace);
+    else await this.checkNonActive(config.appId, config.namespace, [config.id]);
 
-    const toggled = await this.configRepository.update(
+    await this.configRepository.update(
       { id: dto.configId, appId: dto.appId },
-      { isUse: !config.isUse }
+      { isUse: config.isUse }
     );
 
-    const cacheKey = CacheKeyGenerator.config(config.app.code, config.namespace);
+    const { app, ...configData } = config;
 
-    if (!config.isUse) {
-      const { app, ...configData } = config;
+    const [cached] = await Promise.all([
+      this.cache(configData, dto),
+      this.triggerWebhookOnChange(
+        config,
+        config.app.code,
+        config.appId,
+        EWebhookTriggerType.CHANGE
+      ),
+    ]);
 
-      const cacheValue = { ...configData, configs: ConfigService.decryptConfig(config.configs) };
-      await this.cacheService.set(cacheKey, cacheValue);
-    } else {
-      await this.cacheService.delete(cacheKey);
-    }
-
-    return !!toggled.affected;
+    return cached;
   }
 
   public async remove(dto: TConfigServiceRemove) {
@@ -154,12 +141,23 @@ export class ConfigService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
+    await this.checkNonActive(config.appId, config.namespace, [config.id]);
+
+    config.deletedAt = new Date();
+
     await this.configRepository.softDelete(config.id);
 
-    const cacheKey = CacheKeyGenerator.config(config.app.code, config.namespace);
-    await this.cacheService.delete(cacheKey);
+    const [cached] = await Promise.all([
+      this.cache(config, dto),
+      this.triggerWebhookOnChange(
+        config,
+        config.app.code,
+        config.appId,
+        EWebhookTriggerType.REMOVE
+      ),
+    ]);
 
-    return true;
+    return cached;
   }
 
   public async rollback(dto: TConfigServiceRollback) {
@@ -175,21 +173,27 @@ export class ConfigService {
     const newVersion = await this.getNewVersion(dto.appId, config.namespace);
     await this.unusePreviousVersion(dto.appId, config.namespace);
 
-    const { id: _, ...configData } = config;
+    const { id: _, app, ...configData } = config;
 
-    const result = await this.configRepository.save({
+    const instance = this.configRepository.create({
       ...configData,
       isUse: true,
       version: newVersion,
     });
 
-    const cacheKey = CacheKeyGenerator.config(config.app.code, config.namespace);
-    await this.cacheService.set(cacheKey, {
-      ...result,
-      configs: ConfigService.decryptConfig(result.configs),
-    });
+    const rollbacked = await this.configRepository.save(instance);
 
-    return true;
+    const [cached] = await Promise.all([
+      this.cache(rollbacked, dto),
+      this.triggerWebhookOnChange(
+        config,
+        config.app.code,
+        config.appId,
+        EWebhookTriggerType.REMOVE
+      ),
+    ]);
+
+    return cached;
   }
 
   public async migrate(apps: IApp[]) {
@@ -283,5 +287,79 @@ export class ConfigService {
       ...config,
       ...APP_CONSTANTS.DEFAULT_CONFIGS,
     };
+  }
+
+  private async checkNonActive(appId: string, namespace: string, excludeIds: string[]) {
+    const activeCount = await this.configRepository.count({
+      where: {
+        appId: appId,
+        namespace: namespace,
+        id: Not(In(excludeIds)),
+        isUse: true,
+      },
+    });
+
+    if (!activeCount) {
+      throw new Exception(EResponseStatus.BadRequest, EErrorCode.CONFIG_HAVE_NO_ACTIVE);
+    }
+  }
+
+  private getCacheKey(dto: TConfigUseCache, ...parts: Array<string | number>) {
+    return CacheKeyGenerator.config(dto.appCode, dto.appNamespace, ...parts);
+  }
+
+  private async cacheList(
+    configs: IConfig[],
+    cache: TConfigUseCache,
+    ...extKeys: Array<string | number>
+  ): Promise<TConfigDecoded[]> {
+    const cacheKey = this.getCacheKey(cache, ...extKeys);
+
+    if (typeof configs !== 'object' || !Array.isArray(configs)) {
+      return [];
+    }
+
+    const decoded = configs.map(this.decodeConfig);
+
+    await this.cacheService.set(cacheKey, decoded);
+    return decoded;
+  }
+
+  private async cache(
+    config: IConfig,
+    cache: TConfigUseCache,
+    ...extKeys: Array<string | number>
+  ): Promise<TConfigDecoded> {
+    const cacheKey = this.getCacheKey(cache, ...extKeys);
+    const result = this.decodeConfig(config);
+
+    if (config.isUse) await this.cacheService.set(cacheKey, result);
+    else if (!config.isUse || !!config.deletedAt) await this.cacheService.delete(cacheKey);
+
+    await this.cacheService.delete(this.getCacheKey(cache, this.history.name));
+
+    return result;
+  }
+
+  private decodeConfig(config: IConfig) {
+    return {
+      ...config,
+      ...(config.configs ? { configs: ConfigService.decryptConfig(config.configs) } : {}),
+    } as TConfigDecoded;
+  }
+
+  private async triggerWebhookOnChange(
+    data: IConfig,
+    appCode: string,
+    appId: string,
+    triggerType: EWebhookTriggerType
+  ) {
+    await this.webhookService.trigger({
+      appCode: appCode,
+      appId: appId,
+      data: this.decodeConfig(data),
+      triggerOn: EWebhookTriggerOn.CONFIG,
+      triggerType,
+    });
   }
 }
