@@ -91,6 +91,7 @@ export class ConfigService {
     const [cached] = await Promise.all([
       this.cache(newConfig, dto),
       this.triggerWebhookOnChange(newConfig, dto.appCode, dto.appId, EWebhookTriggerType.CHANGE),
+      this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 
     return cached;
@@ -126,6 +127,7 @@ export class ConfigService {
         config.appId,
         EWebhookTriggerType.CHANGE
       ),
+      this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 
     return cached;
@@ -155,6 +157,7 @@ export class ConfigService {
         config.appId,
         EWebhookTriggerType.REMOVE
       ),
+      this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 
     return cached;
@@ -191,6 +194,7 @@ export class ConfigService {
         config.appId,
         EWebhookTriggerType.REMOVE
       ),
+      this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 
     return cached;
@@ -335,8 +339,6 @@ export class ConfigService {
 
     if (config.isUse) await this.cacheService.set(cacheKey, result);
     else if (!config.isUse || !!config.deletedAt) await this.cacheService.delete(cacheKey);
-
-    await this.cacheService.delete(this.getCacheKey(cache, this.history.name));
 
     return result;
   }

@@ -35,7 +35,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@redis/client": "^5.8.3",
     "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.12.2",
     "bullmq": "^5.61.2",

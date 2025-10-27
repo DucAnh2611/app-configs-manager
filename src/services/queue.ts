@@ -1,13 +1,13 @@
 import { Job, JobsOptions, Queue, Worker } from 'bullmq';
 import dayjs from 'dayjs';
 import { printGrid } from '../helpers';
-import { createIORedis } from '../libs';
+import { Redis } from '../libs';
 
 export class QueueService {
   private queues: Map<string, Queue> = new Map();
   private workers: Map<string, Worker> = new Map();
 
-  constructor(private readonly connection: ReturnType<typeof createIORedis>) {}
+  constructor(private readonly connection: Redis) {}
 
   public getQueue(name: string): Queue {
     if (!this.queues.has(name)) {

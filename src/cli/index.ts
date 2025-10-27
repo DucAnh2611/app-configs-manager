@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import 'reflect-metadata';
 import { initControllers } from '../controllers';
 import { AppDataSource } from '../db';
-import { connectRedis, createIORedis } from '../libs';
+import { connectRedis } from '../libs';
 import { initServices } from '../services';
 import { registerApiKeyCommands } from './api-key';
 import { registerAppCommands } from './app';
@@ -15,8 +15,7 @@ const InitCli = async () => {
 
   await connectRedis();
 
-  const ioRedis = createIORedis();
-  initServices({ ioRedis });
+  initServices();
   initControllers();
 
   program.name('app_configs').description('CLI to manage Apps and API Keys').version('1.0.0');
