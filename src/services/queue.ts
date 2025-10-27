@@ -86,7 +86,8 @@ export class QueueService {
         ['queueName', 'Name'],
         ['status', 'Status'],
         ['time', 'Time'],
-      ]
+      ],
+      { name: `Worker Result of ${queueName}` }
     );
   }
 }

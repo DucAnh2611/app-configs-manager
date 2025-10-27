@@ -128,7 +128,8 @@ const getAxiosInstance = ({
             ['state', 'Layer State'],
             ['detail', 'Detail'],
             ['path', 'Url'],
-          ]
+          ],
+          { name: 'Axios Error' }
         );
 
         throw new Exception(response.status, EErrorCode.API_CALL_ERROR);
@@ -161,7 +162,8 @@ const getAxiosInstance = ({
           ['state', 'Layer State'],
           ['detail', 'Detail'],
           ['path', 'Url'],
-        ]
+        ],
+        { name: 'Axios Error' }
       );
 
       throw new Exception(status, EErrorCode.API_CALL_ERROR);

@@ -14,7 +14,11 @@ TestRouter.get('/', (req, res) => {
       ['path', 'Path'],
       ['method', 'Method'],
       ['query', 'Query'],
-    ]
+    ],
+    {
+      name: 'Webhook Test Get',
+      split: ':',
+    }
   );
 
   return res.json({
@@ -36,7 +40,11 @@ TestRouter.post('/', (req, res) => {
       ['method', 'Method'],
       ['body', 'Body'],
       ['query', 'Query'],
-    ]
+    ],
+    {
+      name: 'Webhook Test Post',
+      split: ':',
+    }
   );
 
   return res.json({
