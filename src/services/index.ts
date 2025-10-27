@@ -33,7 +33,17 @@ export const initServices = async ({ ioRedis }: { ioRedis: Redis }) => {
   const queueService = new QueueService(ioRedis);
   const cronService = new CronService(queueService);
 
-  const configService = new ConfigService(configRepository, cacheService);
+  const webhookHistoryService = new WebhookHistoryService(
+    webhoookHistoryRepository,
+    configRepository,
+    queueService
+  );
+  const webhookService = new WebhookService(
+    webhookRepository,
+    configRepository,
+    webhookHistoryService
+  );
+  const configService = new ConfigService(configRepository, cacheService, webhookService);
   const appService = new AppService(appRepository, cacheService, configService);
   const apiKeyService = new ApiKeyService(
     apiKeyRepository,
@@ -41,14 +51,6 @@ export const initServices = async ({ ioRedis }: { ioRedis: Redis }) => {
     configService,
     cacheService
   );
-  const webhookService = new WebhookService(webhookRepository);
-  const webhookHistoryService = new WebhookHistoryService(
-    webhoookHistoryRepository,
-    webhookService,
-    configService,
-    queueService
-  );
-
   services = {
     apiKeyService,
     cacheService,

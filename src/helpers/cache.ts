@@ -2,8 +2,8 @@ import { CACHE_CONSTANTS } from '../constants';
 import { ECacheKey } from '../enums';
 
 export class CacheKeyGenerator {
-  static config(appId: string, namespace: string): string {
-    return `${ECacheKey.CONFIG}_${appId}_${namespace}`;
+  static config(appId: string, namespace: string, ...parts: Array<string | number>): string {
+    return this.custom(ECacheKey.CONFIG, appId, namespace, ...parts);
   }
 
   static webhookList(appId: string): string {

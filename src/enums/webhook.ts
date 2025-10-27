@@ -1,5 +1,6 @@
 export enum EWebhookTriggerType {
   CHANGE = 'CHANGE',
+  REMOVE = 'REMOVE',
 }
 
 export enum EWebhookTriggerOn {

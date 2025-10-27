@@ -4,7 +4,7 @@ import { initCronJob } from './cron';
 import { AppDataSource } from './db';
 import { connectRedis, createIORedis, env } from './libs';
 import { ErrorHandler, ResponseHandler } from './middlewares';
-import { ApiRouter } from './routes';
+import { ApiRouter, WebhookRouter } from './routes';
 import { initServices } from './services';
 
 async function main() {
@@ -29,6 +29,8 @@ async function main() {
   app.get('/ping', (req, res) => {
     res.json({ message: 'Hello from API' });
   });
+
+  app.use('/webhook', WebhookRouter);
 
   app.use('/api', ApiRouter, ResponseHandler());
 

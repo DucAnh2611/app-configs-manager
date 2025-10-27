@@ -40,6 +40,7 @@ export enum EErrorCode {
   // Config
   CONFIG_NOT_EXIST,
   CONFIG_EXISTED,
+  CONFIG_HAVE_NO_ACTIVE,
 
   // Webhook
   WEBHOOK_ALREADY_EXIST,

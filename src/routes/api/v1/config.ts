@@ -21,9 +21,13 @@ ConfigRouter.get(
       const { configController } = getController();
 
       const { appId } = req.apiKey;
-      const { namespace } = req.appSign;
+      const { namespace, code } = req.appSign;
 
-      const data = await configController.history({ appId, appNamespace: namespace });
+      const data = await configController.history({
+        appId,
+        appNamespace: namespace,
+        appCode: code,
+      });
 
       return data;
     },
@@ -57,9 +61,14 @@ ConfigRouter.post(
       const { configController } = getController();
 
       const { appId } = req.apiKey;
-      const { namespace } = req.appSign;
+      const { namespace, code } = req.appSign;
 
-      const data = await configController.up({ appId, namespace, ...req.body });
+      const data = await configController.up({
+        appId,
+        appNamespace: namespace,
+        ...req.body,
+        appCode: code,
+      });
 
       return data;
     },
@@ -76,9 +85,15 @@ ConfigRouter.post(
       const { configController } = getController();
 
       const { appId } = req.apiKey;
+      const { code, namespace } = req.appSign;
       const { id: configId } = req.params as any as DtoConfigToggleUse;
 
-      const data = await configController.toggleUse({ configId, appId });
+      const data = await configController.toggleUse({
+        configId,
+        appId,
+        appCode: code,
+        appNamespace: namespace,
+      });
 
       return data;
     },
@@ -95,9 +110,15 @@ ConfigRouter.post(
       const { configController } = getController();
 
       const { appId } = req.apiKey;
+      const { code, namespace } = req.appSign;
       const { id: configId } = req.params as any as DtoConfigRollback;
 
-      const data = await configController.rollback({ configId, appId });
+      const data = await configController.rollback({
+        configId,
+        appId,
+        appCode: code,
+        appNamespace: namespace,
+      });
 
       return data;
     },
@@ -114,9 +135,15 @@ ConfigRouter.delete(
       const { configController } = getController();
 
       const { appId } = req.apiKey;
+      const { code, namespace } = req.appSign;
       const { id: configId } = req.params as any as DtoConfigRemove;
 
-      const data = await configController.remove({ configId, appId });
+      const data = await configController.remove({
+        configId,
+        appId,
+        appCode: code,
+        appNamespace: namespace,
+      });
 
       return data;
     },

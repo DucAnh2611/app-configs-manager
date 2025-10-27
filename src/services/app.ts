@@ -107,8 +107,9 @@ export class AppService {
 
     await this.configService.up({
       appId: saved.id,
+      appCode: saved.code,
       configs: {},
-      namespace: dto.namespace,
+      appNamespace: dto.namespace,
     });
 
     return saved;

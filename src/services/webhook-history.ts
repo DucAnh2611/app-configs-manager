@@ -5,7 +5,7 @@ import { QUEUE_CONSTANTS } from '../constants/queue';
 import { EErrorCode, EResponseStatus, EWebhookHistoryStatus } from '../enums';
 import { convertToDayjs, Exception, getSortObject } from '../helpers';
 import { getAxios } from '../libs';
-import { WebhookHistoryRepository } from '../repositories';
+import { ConfigRepository, WebhookHistoryRepository } from '../repositories';
 import {
   IWebhook,
   IWebhookHistory,
@@ -17,13 +17,11 @@ import {
 } from '../types';
 import { ConfigService } from './config';
 import { QueueService } from './queue';
-import { WebhookService } from './webhook';
 
 export class WebhookHistoryService {
   constructor(
     private readonly webhookHistoryRepository: WebhookHistoryRepository,
-    private readonly webhookService: WebhookService,
-    private readonly configService: ConfigService,
+    private readonly configRepository: ConfigRepository,
     private readonly queueService: QueueService
   ) {}
 
@@ -117,14 +115,12 @@ export class WebhookHistoryService {
         }
       );
 
-      const config = await this.configService.get({
-        appCode: COMMON_CONFIG.APP_CODE,
-        appNamespace: COMMON_CONFIG.APP_ENV,
-      });
+      const { WEBHOOK_AUTH_HEADER_NAME, WEBHOOK_AUTH_HEADER_FORMAT } = await this.getHeaderConfig(
+        COMMON_CONFIG.APP_CODE,
+        COMMON_CONFIG.APP_ENV
+      );
 
-      const { WEBHOOK_AUTH_HEADER_NAME, WEBHOOK_AUTH_HEADER_FORMAT } = config.configs;
-
-      const webhookConfig = await this.webhookService.getById(queueWebhook.webhookId);
+      const webhookConfig = queueWebhook.webhook!;
 
       const axios = getAxios({
         method: webhookConfig.method,
@@ -198,19 +194,20 @@ export class WebhookHistoryService {
   }
 
   public async registerCall() {
-    const config = await this.configService.get({
-      appCode: COMMON_CONFIG.APP_CODE,
-      appNamespace: COMMON_CONFIG.APP_ENV,
-    });
-
-    const { WEBHOOK_HISTORY_CLEAN_UP_PERIOD } = config.configs;
+    const { WEBHOOK_HISTORY_CLEAN_UP_PERIOD } = await this.getHeaderConfig(
+      COMMON_CONFIG.APP_CODE,
+      COMMON_CONFIG.APP_ENV
+    );
 
     const [time, unit] = convertToDayjs(WEBHOOK_HISTORY_CLEAN_UP_PERIOD);
 
     const list = await this.webhookHistoryRepository.find({
       where: {
         status: EWebhookHistoryStatus.IN_QUEUE,
-        updatedAt: MoreThanOrEqual(dayjs().add(time, unit).toDate()),
+        updatedAt: MoreThanOrEqual(dayjs().subtract(time, unit).toDate()),
+      },
+      relations: {
+        webhook: true,
       },
     });
 
@@ -222,12 +219,10 @@ export class WebhookHistoryService {
   }
 
   public async registerClean() {
-    const config = await this.configService.get({
-      appCode: COMMON_CONFIG.APP_CODE,
-      appNamespace: COMMON_CONFIG.APP_ENV,
-    });
-
-    const { WEBHOOK_HISTORY_CLEAN_UP_PERIOD } = config.configs;
+    const { WEBHOOK_HISTORY_CLEAN_UP_PERIOD } = await this.getHeaderConfig(
+      COMMON_CONFIG.APP_CODE,
+      COMMON_CONFIG.APP_ENV
+    );
 
     const [time, unit] = convertToDayjs(WEBHOOK_HISTORY_CLEAN_UP_PERIOD);
 
@@ -238,8 +233,24 @@ export class WebhookHistoryService {
       },
     });
 
-    if (!this.list.length) return;
+    if (!cleanList.length) return;
 
     await this.queueService.addQueue(QUEUE_CONSTANTS.NAME.WEBHOOK_HISTORY_CLEAN, cleanList);
+  }
+
+  private async getHeaderConfig(code: string, namespace: string) {
+    const config = await this.configRepository.findOne({
+      where: {
+        app: { code },
+        namespace,
+        isUse: true,
+      },
+    });
+
+    if (!config) {
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
+    }
+
+    return ConfigService.safeConfig(ConfigService.decryptConfig(config.configs));
   }
 }

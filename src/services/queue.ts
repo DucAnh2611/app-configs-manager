@@ -1,4 +1,6 @@
 import { Job, JobsOptions, Queue, Worker } from 'bullmq';
+import dayjs from 'dayjs';
+import { printGrid } from '../helpers';
 import { createIORedis } from '../libs';
 
 export class QueueService {
@@ -38,11 +40,13 @@ export class QueueService {
       concurrency,
     });
 
-    const onCompleted = (job: Job) =>
-      console.log(`[${new Date().toISOString()}] - ${queueName}: Completed`);
+    const onCompleted = async (job: Job) => {
+      this.printResultWorker(queueName, 'Completed');
+    };
 
-    const onFailed = (job: Job | undefined, err: Error) =>
-      console.error(`[${new Date().toISOString()}] - ${queueName}: Failed: ${err.message}`);
+    const onFailed = async (job: Job | undefined, err: Error) => {
+      this.printResultWorker(queueName, 'Failed');
+    };
 
     worker.on('completed', onCompleted);
     worker.on('failed', onFailed);
@@ -69,5 +73,20 @@ export class QueueService {
 
       this.workers.delete(queueName);
     }
+  }
+
+  private async printResultWorker(queueName: string, status: string) {
+    printGrid(
+      {
+        queueName,
+        status,
+        time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      },
+      [
+        ['queueName', 'Name'],
+        ['status', 'Status'],
+        ['time', 'Time'],
+      ]
+    );
   }
 }
