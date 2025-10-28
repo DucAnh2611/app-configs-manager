@@ -1,7 +1,15 @@
-import { NextFunction, Request, RequestHandler, Response } from 'express';
+import { NextFunction, RequestHandler, Response } from 'express';
 import { EErrorCode, EResponseStatus } from '../enums';
 import { logger } from '../libs';
-import { TRequest, TResponse, TResponseValidation } from '../types';
+import {
+  TMiddlewareHandler,
+  TRequest,
+  TRequestBase,
+  TResponse,
+  TResponseValidation,
+  TRouteHandlerOptions,
+  TRouterHandler,
+} from '../types';
 import { toPromise } from './promise';
 
 interface IAppResponse {
@@ -69,12 +77,6 @@ export const responseHandler = (res: Response, response: Exception | Success) =>
   return res.status(response.status).json(response.resJson);
 };
 
-type TRouteHandlerOptions = {
-  requireApiKey: boolean;
-  requireAppSignature: boolean;
-  successCode: EResponseStatus | number;
-};
-
 const defaultRouteHandlerOption: TRouteHandlerOptions = {
   successCode: EResponseStatus.Ok,
   requireApiKey: false,
@@ -82,8 +84,8 @@ const defaultRouteHandlerOption: TRouteHandlerOptions = {
 };
 
 export const routeHandler =
-  <T, R extends Request>(
-    handler: (req: R, res: Response, next: NextFunction) => Promise<T>,
+  <RQ extends TRequestBase = TRequestBase, RS extends Response = Response, T = unknown>(
+    handler: TRouterHandler<RQ, RS, T>,
     options: Partial<TRouteHandlerOptions> = {}
   ) =>
   async (req: TRequest, res: Response, next: NextFunction) => {
@@ -100,7 +102,7 @@ export const routeHandler =
       throw new Exception(EResponseStatus.Unauthorized, EErrorCode.APP_UNAUTHORIZATION);
     }
 
-    const data = await toPromise(handler, req as any, res, next);
+    const data = await toPromise(handler, req as any, res as any, next);
 
     (res as any).successCode = combineOptions.successCode;
     (res as any).data = data;
@@ -109,6 +111,7 @@ export const routeHandler =
   };
 
 export const middlewareHandler =
-  (middleware: RequestHandler) => async (req: TRequest, res: Response, next: NextFunction) => {
+  (middleware: RequestHandler): TMiddlewareHandler<TRequest, Response> =>
+  async (req: TRequest, res: Response, next: NextFunction) => {
     await toPromise(middleware, req, res, next);
   };

@@ -1,3 +1,3 @@
-import { Router } from 'express';
+import { createRouter } from '../../../helpers';
 
-export const AppRouter = Router();
+export const AppRouter = createRouter([]);

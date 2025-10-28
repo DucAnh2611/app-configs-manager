@@ -1,8 +1,7 @@
-import { Router } from 'express';
 import { ROUTE_PATHS } from '../../../constants';
 import { getController } from '../../../controllers';
 import { EApiKeyType, EValidateDtoType } from '../../../enums';
-import { routeHandler } from '../../../helpers';
+import { createRouter } from '../../../helpers';
 import { ValidateApiKey, ValidateDto } from '../../../middlewares';
 import {
   DtoConfigRemove,
@@ -12,15 +11,14 @@ import {
   TRequestAuth,
 } from '../../../types';
 
-export const ConfigRouter = Router();
-
 const configPaths = ROUTE_PATHS.api.v1.config;
 
-ConfigRouter.get(
-  configPaths.history,
-  ValidateApiKey(EApiKeyType.CONFIG),
-  routeHandler(
-    async (req: TRequestAuth) => {
+export const ConfigRouter = createRouter([
+  {
+    path: configPaths.history,
+    method: 'get',
+    middlewares: [ValidateApiKey(EApiKeyType.CONFIG)],
+    handler: async (req: TRequestAuth) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
@@ -34,15 +32,13 @@ ConfigRouter.get(
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.get(
-  configPaths.get,
-  ValidateApiKey(EApiKeyType.CONFIG),
-  routeHandler(
-    async (req: TRequestAuth) => {
+    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+  },
+  {
+    path: configPaths.get,
+    method: 'get',
+    middlewares: [ValidateApiKey(EApiKeyType.CONFIG)],
+    handler: async (req: TRequestAuth) => {
       const { configController } = getController();
 
       const { namespace, code } = req.appSign;
@@ -51,16 +47,16 @@ ConfigRouter.get(
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.post(
-  configPaths.up,
-  ValidateDto([{ dto: DtoConfigUp, type: EValidateDtoType.BODY }]),
-  ValidateApiKey(EApiKeyType.UP_CONFIG),
-  routeHandler(
-    async (req: TRequestAuth<DtoConfigUp, {}, {}>) => {
+    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+  },
+  {
+    path: configPaths.up,
+    method: 'post',
+    middlewares: [
+      ValidateDto([{ dto: DtoConfigUp, type: EValidateDtoType.BODY }]),
+      ValidateApiKey(EApiKeyType.UP_CONFIG),
+    ],
+    handler: async (req: TRequestAuth<DtoConfigUp, {}, {}>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
@@ -75,16 +71,16 @@ ConfigRouter.post(
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.post(
-  configPaths.toggle,
-  ValidateDto([{ dto: DtoConfigToggleUse, type: EValidateDtoType.PARAM }]),
-  ValidateApiKey(EApiKeyType.UP_CONFIG),
-  routeHandler(
-    async (req: TRequestAuth<{}, {}, DtoConfigToggleUse>) => {
+    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+  },
+  {
+    path: configPaths.toggle,
+    method: 'post',
+    middlewares: [
+      ValidateDto([{ dto: DtoConfigToggleUse, type: EValidateDtoType.PARAM }]),
+      ValidateApiKey(EApiKeyType.UP_CONFIG),
+    ],
+    handler: async (req: TRequestAuth<{}, {}, DtoConfigToggleUse>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
@@ -100,16 +96,16 @@ ConfigRouter.post(
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.post(
-  configPaths.rollback,
-  ValidateDto([{ dto: DtoConfigRollback, type: EValidateDtoType.PARAM }]),
-  ValidateApiKey(EApiKeyType.UP_CONFIG),
-  routeHandler(
-    async (req: TRequestAuth<{}, {}, DtoConfigRollback>) => {
+    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+  },
+  {
+    path: configPaths.rollback,
+    method: 'post',
+    middlewares: [
+      ValidateDto([{ dto: DtoConfigRollback, type: EValidateDtoType.PARAM }]),
+      ValidateApiKey(EApiKeyType.UP_CONFIG),
+    ],
+    handler: async (req: TRequestAuth<{}, {}, DtoConfigRollback>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
@@ -125,16 +121,16 @@ ConfigRouter.post(
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.delete(
-  configPaths.remove,
-  ValidateDto([{ dto: DtoConfigRemove, type: EValidateDtoType.PARAM }]),
-  ValidateApiKey(EApiKeyType.UP_CONFIG),
-  routeHandler(
-    async (req: TRequestAuth<{}, {}, DtoConfigRemove>) => {
+    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+  },
+  {
+    path: configPaths.remove,
+    method: 'delete',
+    middlewares: [
+      ValidateDto([{ dto: DtoConfigRemove, type: EValidateDtoType.PARAM }]),
+      ValidateApiKey(EApiKeyType.UP_CONFIG),
+    ],
+    handler: async (req: TRequestAuth<{}, {}, DtoConfigRemove>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
@@ -150,6 +146,6 @@ ConfigRouter.delete(
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
+    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+  },
+]);

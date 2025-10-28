@@ -6,6 +6,7 @@ export * from './jwt';
 export * from './pagination';
 export * from './promise';
 export * from './response';
+export * from './route';
 export * from './table-cli';
 export * from './time';
 

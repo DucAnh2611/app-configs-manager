@@ -34,8 +34,7 @@ async function main() {
     res.json({ message: 'Hello from API' });
   });
 
-  app.use(appPaths.webhook.base, WebhookRouter);
-
+  app.use(appPaths.webhook.base, WebhookRouter, ResponseHandler());
   app.use(appPaths.api.base, ApiRouter, ResponseHandler());
 
   app.all(appPaths.any, () => {
