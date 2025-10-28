@@ -1,7 +1,7 @@
 import { Job, JobsOptions, Queue, Worker } from 'bullmq';
 import dayjs from 'dayjs';
 import { printGrid } from '../helpers';
-import { Redis } from '../libs';
+import { logger, Redis } from '../libs';
 
 export class QueueService {
   private queues: Map<string, Queue> = new Map();
@@ -52,7 +52,7 @@ export class QueueService {
     worker.on('failed', onFailed);
 
     worker.on('closed', () => {
-      console.log(`🧹 [${queueName}] Worker closed, cleaning up...`);
+      logger.info(`🧹 [${queueName}] Worker closed, cleaning up...`);
 
       worker.removeListener('completed', onCompleted);
       worker.removeListener('failed', onFailed);

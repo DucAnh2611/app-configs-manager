@@ -2,7 +2,7 @@ import express from 'express';
 import { initControllers } from './controllers';
 import { initCronJob } from './cron';
 import { AppDataSource } from './db';
-import { connectRedis, env } from './libs';
+import { connectRedis, env, logger } from './libs';
 import { ErrorHandler, ResponseHandler } from './middlewares';
 import { ApiRouter, WebhookRouter } from './routes';
 import { initServices } from './services';
@@ -38,7 +38,7 @@ async function main() {
   const PORT = env.PORT;
 
   app.listen(PORT, () => {
-    console.log(`✅ Server is running on http://localhost:${PORT}`);
+    logger.info(`✅ Server is running on http://localhost:${PORT}`);
   });
 }
 
