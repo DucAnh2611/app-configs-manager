@@ -50,7 +50,7 @@ export class Exception extends AppResponse implements IAppResponse {
     let error = this.error;
 
     if (error instanceof Error) {
-      logger.error(error);
+      logger.error(error.message);
       error = EErrorCode.UNKNOWN;
     }
 
@@ -100,7 +100,7 @@ export const routeHandler =
       throw new Exception(EResponseStatus.Unauthorized, EErrorCode.APP_UNAUTHORIZATION);
     }
 
-    const data = await toPromise(handler, req as R, res, next);
+    const data = await toPromise(handler, req as any, res, next);
 
     (res as any).successCode = combineOptions.successCode;
     (res as any).data = data;

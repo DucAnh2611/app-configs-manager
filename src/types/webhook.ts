@@ -87,6 +87,7 @@ export type TWebhookHistoryServiceList = TPagination &
   TSort & {
     webhookId?: string;
     status?: EWebhookHistoryStatus;
+    appId: string;
   };
 
 export type TWebhookHistoryServiceRetry = {
