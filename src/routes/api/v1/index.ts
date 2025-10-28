@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { ROUTE_PATHS } from '../../../constants';
 import { ApiKeyRouter } from './api-key';
 import { AppRouter } from './app';
 import { ConfigRouter } from './config';
@@ -7,8 +8,10 @@ import { WebhookHistoryRouter } from './webhook-history';
 
 export const ApiV1Router = Router();
 
-ApiV1Router.use('/api-key', ApiKeyRouter);
-ApiV1Router.use('/app', AppRouter);
-ApiV1Router.use('/config', ConfigRouter);
-ApiV1Router.use('/webhook', WebhookRouter);
-ApiV1Router.use('/webhook-history', WebhookHistoryRouter);
+const apiV1paths = ROUTE_PATHS.api.v1;
+
+ApiV1Router.use(apiV1paths.apiKey.base, ApiKeyRouter);
+ApiV1Router.use(apiV1paths.app.base, AppRouter);
+ApiV1Router.use(apiV1paths.config.base, ConfigRouter);
+ApiV1Router.use(apiV1paths.webhook.base, WebhookRouter);
+ApiV1Router.use(apiV1paths.webhookHistory.base, WebhookHistoryRouter);

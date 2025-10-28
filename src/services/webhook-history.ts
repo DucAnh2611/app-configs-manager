@@ -3,7 +3,13 @@ import { In, IsNull, LessThan, MoreThanOrEqual, Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
 import { QUEUE_CONSTANTS } from '../constants/queue';
 import { EErrorCode, EResponseStatus, EWebhookHistoryStatus } from '../enums';
-import { convertToDayjs, Exception, getSortObject } from '../helpers';
+import {
+  convertToDayjs,
+  Exception,
+  getPaginationQuery,
+  getPaginationResponse,
+  getSortObject,
+} from '../helpers';
 import { getAxios } from '../libs';
 import { ConfigRepository, WebhookHistoryRepository } from '../repositories';
 import {
@@ -60,18 +66,10 @@ export class WebhookHistoryService {
           isActive: true,
         },
       },
-      order,
-      take: payload.size,
-      skip: (payload.page - 1) * payload.size,
+      ...getPaginationQuery(payload, order),
     });
 
-    return {
-      page: payload.page,
-      size: payload.size,
-      sort: order,
-      total,
-      items: list,
-    };
+    return getPaginationResponse(list, payload, order, total);
   }
 
   public async update(payload: TWebhookHistoryServiceUpdate) {

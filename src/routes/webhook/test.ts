@@ -1,9 +1,12 @@
 import { Router } from 'express';
+import { ROUTE_PATHS } from '../../constants';
 import { printGrid } from '../../helpers';
 
 export const TestRouter = Router();
 
-TestRouter.get('/', (req, res) => {
+const webhookTestPaths = ROUTE_PATHS.webhook.test;
+
+TestRouter.get(webhookTestPaths.get, (req, res) => {
   printGrid(
     {
       path: '/test/webhook',
@@ -27,7 +30,7 @@ TestRouter.get('/', (req, res) => {
   });
 });
 
-TestRouter.post('/', (req, res) => {
+TestRouter.post(webhookTestPaths.post, (req, res) => {
   printGrid(
     {
       path: '/test/webhook',

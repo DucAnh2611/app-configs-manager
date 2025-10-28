@@ -9,7 +9,7 @@ export type TJwtApiKeyPayload = {
   appId: string;
 };
 
-export type TRequestValidatedDto<B = unknown, Q = unknown, P = unknown> = {
+export type TRequestValidatedDto<B = unknown, Q = unknown, P = unknown> = Request & {
   vBody: B;
   vQuery: Q;
   vParam: P;
@@ -20,13 +20,19 @@ export type TRequest = Request & {
   apiKey?: TRequestApiKey;
 };
 
-export type TRequestWithApiKey<B = unknown, Q = unknown, P = unknown> = Request &
-  TRequestValidatedDto<B, Q, P> & {
-    apiKey: TRequestApiKey;
-  };
+export type TRequestWithApiKey<B = unknown, Q = unknown, P = unknown> = TRequestValidatedDto<
+  B,
+  Q,
+  P
+> & {
+  apiKey: TRequestApiKey;
+};
 
-export type TRequestWithtAppSignature<B = unknown, Q = unknown, P = unknown> = Request &
-  TRequestValidatedDto<B, Q, P> & { appSign: TRequestAppSign };
+export type TRequestWithtAppSignature<B = unknown, Q = unknown, P = unknown> = TRequestValidatedDto<
+  B,
+  Q,
+  P
+> & { appSign: TRequestAppSign };
 
 export type TRequestAuth<B = unknown, Q = unknown, P = unknown> = TRequestWithApiKey<B, Q, P> &
   TRequestWithtAppSignature<B, Q, P>;

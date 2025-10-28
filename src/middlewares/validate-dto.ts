@@ -32,7 +32,10 @@ const validateEachSource = async (dtoClass: any, sourceType: EValidateDtoType, r
     throw new Exception(EResponseStatus.BadRequest, formatted);
   }
 
-  const mapFields: Record<EValidateDtoType, keyof TRequestValidatedDto<any, any, any>> = {
+  const mapFields: Record<
+    EValidateDtoType,
+    keyof Pick<TRequestValidatedDto<any, any, any>, 'vBody' | 'vParam' | 'vQuery'>
+  > = {
     [EValidateDtoType.BODY]: 'vBody',
     [EValidateDtoType.QUERY]: 'vQuery',
     [EValidateDtoType.PARAM]: 'vParam',

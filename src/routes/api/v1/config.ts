@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { ROUTE_PATHS } from '../../../constants';
 import { getController } from '../../../controllers';
 import { EApiKeyType, EValidateDtoType } from '../../../enums';
 import { routeHandler } from '../../../helpers';
@@ -13,8 +14,10 @@ import {
 
 export const ConfigRouter = Router();
 
+const configPaths = ROUTE_PATHS.api.v1.config;
+
 ConfigRouter.get(
-  '/history',
+  configPaths.history,
   ValidateApiKey(EApiKeyType.CONFIG),
   routeHandler(
     async (req: TRequestAuth) => {
@@ -36,7 +39,7 @@ ConfigRouter.get(
 );
 
 ConfigRouter.get(
-  '/',
+  configPaths.get,
   ValidateApiKey(EApiKeyType.CONFIG),
   routeHandler(
     async (req: TRequestAuth) => {
@@ -53,20 +56,20 @@ ConfigRouter.get(
 );
 
 ConfigRouter.post(
-  '/',
+  configPaths.up,
   ValidateDto([{ dto: DtoConfigUp, type: EValidateDtoType.BODY }]),
   ValidateApiKey(EApiKeyType.UP_CONFIG),
   routeHandler(
-    async (req: TRequestAuth) => {
+    async (req: TRequestAuth<DtoConfigUp, {}, {}>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
       const { namespace, code } = req.appSign;
 
       const data = await configController.up({
+        ...req.vBody,
         appId,
         appNamespace: namespace,
-        ...req.body,
         appCode: code,
       });
 
@@ -77,16 +80,16 @@ ConfigRouter.post(
 );
 
 ConfigRouter.post(
-  '/:id/toggle',
+  configPaths.toggle,
   ValidateDto([{ dto: DtoConfigToggleUse, type: EValidateDtoType.PARAM }]),
   ValidateApiKey(EApiKeyType.UP_CONFIG),
   routeHandler(
-    async (req: TRequestAuth) => {
+    async (req: TRequestAuth<{}, {}, DtoConfigToggleUse>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
       const { code, namespace } = req.appSign;
-      const { id: configId } = req.params as any as DtoConfigToggleUse;
+      const { id: configId } = req.vParam;
 
       const data = await configController.toggleUse({
         configId,
@@ -102,16 +105,16 @@ ConfigRouter.post(
 );
 
 ConfigRouter.post(
-  '/:id/rollback',
+  configPaths.rollback,
   ValidateDto([{ dto: DtoConfigRollback, type: EValidateDtoType.PARAM }]),
   ValidateApiKey(EApiKeyType.UP_CONFIG),
   routeHandler(
-    async (req: TRequestAuth) => {
+    async (req: TRequestAuth<{}, {}, DtoConfigRollback>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
       const { code, namespace } = req.appSign;
-      const { id: configId } = req.params as any as DtoConfigRollback;
+      const { id: configId } = req.vParam;
 
       const data = await configController.rollback({
         configId,
@@ -127,16 +130,16 @@ ConfigRouter.post(
 );
 
 ConfigRouter.delete(
-  '/:id',
+  configPaths.remove,
   ValidateDto([{ dto: DtoConfigRemove, type: EValidateDtoType.PARAM }]),
   ValidateApiKey(EApiKeyType.UP_CONFIG),
   routeHandler(
-    async (req: TRequestAuth) => {
+    async (req: TRequestAuth<{}, {}, DtoConfigRemove>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
       const { code, namespace } = req.appSign;
-      const { id: configId } = req.params as any as DtoConfigRemove;
+      const { id: configId } = req.vParam;
 
       const data = await configController.remove({
         configId,
