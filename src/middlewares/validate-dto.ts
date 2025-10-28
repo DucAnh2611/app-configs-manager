@@ -3,7 +3,7 @@ import { validate } from 'class-validator';
 import { NextFunction, Request, Response } from 'express';
 import { EResponseStatus, EValidateDtoType } from '../enums';
 import { Exception, middlewareHandler } from '../helpers';
-import { TResponseValidation } from '../types';
+import { TRequestValidatedDto, TResponseValidation } from '../types';
 
 export const ValidateDto = (sources: Array<{ dto: any; type: EValidateDtoType }> = []) => {
   return middlewareHandler(async (req: Request, res: Response, next: NextFunction) => {
@@ -32,5 +32,13 @@ const validateEachSource = async (dtoClass: any, sourceType: EValidateDtoType, r
     throw new Exception(EResponseStatus.BadRequest, formatted);
   }
 
-  Object.assign(req[sourceType], dtoInstance);
+  const mapFields: Record<EValidateDtoType, keyof TRequestValidatedDto<any, any, any>> = {
+    [EValidateDtoType.BODY]: 'vBody',
+    [EValidateDtoType.QUERY]: 'vQuery',
+    [EValidateDtoType.PARAM]: 'vParam',
+  };
+
+  if (!mapFields[sourceType]) return;
+
+  (req as Partial<TRequestValidatedDto<any, any, any>>)[mapFields[sourceType]] = dtoInstance;
 };

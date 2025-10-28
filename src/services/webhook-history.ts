@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { In, LessThan, MoreThanOrEqual } from 'typeorm';
+import { In, IsNull, LessThan, MoreThanOrEqual, Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
 import { QUEUE_CONSTANTS } from '../constants/queue';
 import { EErrorCode, EResponseStatus, EWebhookHistoryStatus } from '../enums';
@@ -28,16 +28,50 @@ export class WebhookHistoryService {
   public async list(payload: TWebhookHistoryServiceList) {
     const order = getSortObject<IWebhook>(payload.sort);
 
-    const list = await this.webhookHistoryRepository.find({
+    const [list, total] = await this.webhookHistoryRepository.findAndCount({
       where: {
-        ...(payload.webhookId ? { id: payload.webhookId } : {}),
+        status: payload.status || Not(IsNull()),
+        webhook: {
+          id: payload.webhookId || Not(IsNull()),
+          appId: payload.appId,
+        },
+      },
+      relations: {
+        webhook: true,
+      },
+      select: {
+        id: true,
+        webhookId: false,
+        status: true,
+        logs: true,
+        data: true,
+        isSuccess: true,
+        createdAt: true,
+        updatedAt: true,
+        webhook: {
+          id: true,
+          appId: false,
+          method: true,
+          name: true,
+          triggerOn: true,
+          triggerType: true,
+          targetUrl: true,
+          bodyType: false,
+          isActive: true,
+        },
       },
       order,
       take: payload.size,
       skip: (payload.page - 1) * payload.size,
     });
 
-    return list;
+    return {
+      page: payload.page,
+      size: payload.size,
+      sort: order,
+      total,
+      items: list,
+    };
   }
 
   public async update(payload: TWebhookHistoryServiceUpdate) {
@@ -84,7 +118,7 @@ export class WebhookHistoryService {
 
     const allowes = [EWebhookHistoryStatus.FAILED, EWebhookHistoryStatus.SUCCESS];
 
-    if (allowes.includes(isExist.status)) {
+    if (!allowes.includes(isExist.status)) {
       throw new Exception(EResponseStatus.BadRequest, EErrorCode.WEBHOOK_HISTORY_RETRY_NOT_ALLOWED);
     }
 
@@ -93,7 +127,7 @@ export class WebhookHistoryService {
       data: isExist.data,
     });
 
-    return true;
+    return { scheduled: true };
   }
 
   public async getById(id: string) {
