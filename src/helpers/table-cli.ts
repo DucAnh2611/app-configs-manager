@@ -1,8 +1,9 @@
-import chalk from 'chalk';
 import CliTable3 from 'cli-table3';
 import wrap from 'wrap-ansi';
+import { logger } from '../libs';
+import { textColor } from './format-string';
 
-const terminalWidth = 50;
+const terminalWidth = process.stdout?.columns ?? 240;
 
 export const printAppTable = <T>(
   list: T[],
@@ -33,7 +34,7 @@ export const printAppTable = <T>(
     );
   }
 
-  console.log(table.toString());
+  logger.info(table.toString());
 };
 
 type TGridRow = { label: string; data: string };
@@ -48,14 +49,22 @@ type TOptionsFormatGrid = {
 };
 
 const defaultOptionFormatGrid: TOptionsFormatGrid = {
-  labelColor: chalk.red,
-  tableNameColor: chalk.whiteBright.bold,
-  dataColor: chalk.white,
+  labelColor: textColor.red,
+  tableNameColor: textColor.whiteBright.bold,
+  dataColor: textColor.white,
   split: '|',
   labelColMaxWidth: -1,
 };
 
 export const printGrid = <T>(
+  data: T,
+  fields: Array<keyof T | [keyof T, string]>,
+  options: Partial<TOptionsFormatGrid> = {}
+) => {
+  logger.info(createGrid(data, fields, options));
+};
+
+export const createGrid = <T>(
   data: T,
   fields: Array<keyof T | [keyof T, string]>,
   options: Partial<TOptionsFormatGrid> = {}
@@ -92,23 +101,23 @@ export const printGrid = <T>(
     prints.push(printPush);
   });
 
-  console.log(formatGrid(prints, opts));
+  return formatGrid(prints, opts);
 };
 
 const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
   const prints = [],
-    widthContents = terminalWidth - 2;
+    widthContents = terminalWidth - 3;
 
   if (options.name) {
     prints.push(
       [
-        `┌${''.padStart(terminalWidth - 2, '─')}┐`,
+        `┌${''.padStart(terminalWidth - 3, '─')}┐`,
         `│${options.tableNameColor(
           options.name
-            .padEnd(Math.floor((terminalWidth - 2 + options.name.length) / 2))
-            .padStart(terminalWidth - 2)
+            .padEnd(Math.floor((terminalWidth - 3 + options.name.length) / 2))
+            .padStart(terminalWidth - 3)
         )}│`,
-        `└${''.padStart(terminalWidth - 2, '─')}┘`,
+        `└${''.padStart(terminalWidth - 3, '─')}┘`,
       ].join('\n')
     );
   }
@@ -153,7 +162,7 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
               (
                 row.label.slice(
                   line * width.label,
-                  Math.min((line + 1) * width.label, row.label.length - line * width.label)
+                  Math.min((line + 1) * width.label, row.label.length)
                 ) || ''
               ).padEnd(width.label)
             )

@@ -1,4 +1,5 @@
 import cron, { ScheduledTask } from 'node-cron';
+import { logger } from '../libs';
 import { TDynamicJob } from '../types';
 import { QueueService } from './queue';
 
@@ -32,7 +33,7 @@ export class CronService {
     const entry = this.registry.get(name);
     if (!entry) return;
 
-    console.log(`🧹 Removing job: ${name}`);
+    logger.info(`🧹 Removing job: ${name}`);
 
     entry.task.stop();
 

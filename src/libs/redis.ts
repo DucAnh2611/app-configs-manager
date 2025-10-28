@@ -1,5 +1,6 @@
 import IORedis from 'ioredis';
 import { REDIS_CONFIG } from '../configs';
+import { logger } from './logger';
 
 export type Redis = IORedis;
 
@@ -14,9 +15,9 @@ export const connectRedis = async () => {
     maxRetriesPerRequest: null,
   });
 
-  client.on('connect', () => console.log('✅ Redis connected'));
-  client.on('ready', () => console.log('🟢 Redis ready'));
-  client.on('error', (err) => console.error('❌ Redis error', err));
+  client.on('connect', () => logger.info('✅ Redis connected'));
+  client.on('ready', () => logger.info('🟢 Redis ready'));
+  client.on('error', (err) => logger.error(err.message, '❌ Redis error'));
 
   await new Promise<void>((resolve, reject) => {
     client!.once('ready', resolve);

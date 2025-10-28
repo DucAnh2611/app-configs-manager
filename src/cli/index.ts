@@ -1,10 +1,9 @@
 #!/usr/bin/env ts-node
-import chalk from 'chalk';
 import { Command } from 'commander';
 import 'reflect-metadata';
 import { initControllers } from '../controllers';
 import { AppDataSource } from '../db';
-import { connectRedis } from '../libs';
+import { connectRedis, logger } from '../libs';
 import { initServices } from '../services';
 import { registerApiKeyCommands } from './api-key';
 import { registerAppCommands } from './app';
@@ -30,7 +29,7 @@ const InitCli = async () => {
       await AppDataSource.destroy();
     })
     .catch((err) => {
-      console.error(chalk.red('❌ Error:'), err);
+      logger.error(err);
       process.exit(1);
     });
 };

@@ -58,6 +58,7 @@
     "typeorm": "^0.3.27",
     "typescript-eslint": "^8.46.0",
     "uuid": "^13.0.0",
+    "winston": "^3.18.3",
     "wrap-ansi": "^9.0.2"
   },
   "devDependencies": {

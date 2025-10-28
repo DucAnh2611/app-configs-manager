@@ -1,5 +1,6 @@
 import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { EErrorCode, EResponseStatus } from '../enums';
+import { logger } from '../libs';
 import { TRequest, TResponse, TResponseValidation } from '../types';
 import { toPromise } from './promise';
 
@@ -49,7 +50,7 @@ export class Exception extends AppResponse implements IAppResponse {
     let error = this.error;
 
     if (error instanceof Error) {
-      console.error(error);
+      logger.error(error);
       error = EErrorCode.UNKNOWN;
     }
 

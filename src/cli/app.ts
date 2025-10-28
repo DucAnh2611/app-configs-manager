@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { buildCliCommand, ICliCommand, printAppTable } from '../helpers';
+import { logger } from '../libs';
 import { AppService, getServices } from '../services';
 import { DtoAppCreate, DtoAppDetail, DtoAppUpdate, IApp } from '../types';
 
@@ -32,7 +33,7 @@ const Commands = (appService: AppService): ICliCommand[] => [
     ],
     action: async (opts: DtoAppUpdate) => {
       const updateApp = await appService.update(opts);
-      console.log('✅ App updated:', updateApp);
+      logger.info(updateApp, `CLI App Updated`);
 
       process.exit(1);
     },
