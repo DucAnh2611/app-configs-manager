@@ -1,5 +1,5 @@
 import { ROUTE_PATHS } from '../../../constants';
-import { getController } from '../../../controllers';
+import { controllerNames, getController } from '../../../controllers';
 import { EApiKeyType, EValidateDtoType } from '../../../enums';
 import { createRouter } from '../../../helpers';
 import { ValidateApiKey, ValidateDto } from '../../../middlewares';
@@ -32,7 +32,11 @@ export const ConfigRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.history.name,
+    },
   },
   {
     path: configPaths.get,
@@ -47,7 +51,11 @@ export const ConfigRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.get.name,
+    },
   },
   {
     path: configPaths.up,
@@ -71,7 +79,11 @@ export const ConfigRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.up.name,
+    },
   },
   {
     path: configPaths.toggle,
@@ -96,7 +108,11 @@ export const ConfigRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.toggleUse.name,
+    },
   },
   {
     path: configPaths.rollback,
@@ -121,7 +137,11 @@ export const ConfigRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.rollback.name,
+    },
   },
   {
     path: configPaths.remove,
@@ -146,6 +166,10 @@ export const ConfigRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.remove.name,
+    },
   },
 ]);

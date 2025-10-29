@@ -2,11 +2,12 @@ import { NextFunction, Response } from 'express';
 import { EApiKeyType, EErrorCode, EResponseStatus } from '../enums';
 import { Exception, middlewareHandler } from '../helpers';
 import { getServices } from '../services';
-import { TRequest } from '../types';
+import { TRequestBase } from '../types';
 
 export const ValidateApiKey = (type: EApiKeyType) => {
-  return middlewareHandler(async (req: TRequest, _res: Response, next: NextFunction) => {
+  return middlewareHandler(async (req: TRequestBase, _res: Response, next: NextFunction) => {
     const { apiKeyService } = getServices();
+    req.apiKeyType = type;
 
     const authToken: string = (req.headers.authorization || '') as string;
 

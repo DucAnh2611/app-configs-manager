@@ -3,15 +3,17 @@ import { validate } from 'class-validator';
 import { NextFunction, Request, Response } from 'express';
 import { EResponseStatus, EValidateDtoType } from '../enums';
 import { Exception, middlewareHandler } from '../helpers';
-import { TRequestValidatedDto, TResponseValidation } from '../types';
+import { TRequestBase, TRequestValidatedDto, TResponseValidation } from '../types';
 
 export const ValidateDto = (sources: Array<{ dto: any; type: EValidateDtoType }> = []) => {
-  return middlewareHandler(async (req: Request, res: Response, next: NextFunction) => {
+  return middlewareHandler(async (req: TRequestBase, res: Response, next: NextFunction) => {
+    req.dtos = req.dtos || [];
+
     for (const source of sources) {
+      req.dtos.push({ type: source.type, dto: source.dto.name });
+
       await validateEachSource(source.dto, source.type, req);
     }
-
-    (req as any).isValidateDto = true;
 
     next();
   });

@@ -1,5 +1,5 @@
 import { ROUTE_PATHS } from '../../../constants';
-import { getController } from '../../../controllers';
+import { controllerNames, getController } from '../../../controllers';
 import { EValidateDtoType } from '../../../enums';
 import { createRouter } from '../../../helpers';
 import { ValidateDto } from '../../../middlewares';
@@ -19,5 +19,6 @@ export const ApiKeyRouter = createRouter([
 
       return { valid: resData };
     },
+    handlerOptions: { controller: controllerNames.apiKey.check.name },
   },
 ]);

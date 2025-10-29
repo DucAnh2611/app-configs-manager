@@ -6,7 +6,7 @@ import { AppDataSource } from './db';
 import { EErrorCode, EResponseStatus } from './enums';
 import { Exception } from './helpers';
 import { connectRedis, env, logger } from './libs';
-import { ErrorHandler, ResponseHandler } from './middlewares';
+import { AnalysticHandler, ErrorHandler, ResponseHandler } from './middlewares';
 import { ApiRouter, WebhookRouter } from './routes';
 import { initServices } from './services';
 
@@ -33,6 +33,8 @@ async function main() {
   app.get(appPaths.ping.base, (req, res) => {
     res.json({ message: 'Hello from API' });
   });
+
+  app.use(AnalysticHandler);
 
   app.use(appPaths.webhook.base, WebhookRouter, ResponseHandler());
   app.use(appPaths.api.base, ApiRouter, ResponseHandler());

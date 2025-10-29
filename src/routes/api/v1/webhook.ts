@@ -1,5 +1,5 @@
 import { ROUTE_PATHS } from '../../../constants';
-import { getController } from '../../../controllers';
+import { controllerNames, getController } from '../../../controllers';
 import { EApiKeyType, EValidateDtoType } from '../../../enums';
 import { createRouter } from '../../../helpers';
 import { ValidateApiKey, ValidateDto } from '../../../middlewares';
@@ -29,7 +29,7 @@ export const WebhookRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true },
+    handlerOptions: { controller: controllerNames.webhook.list.name, requireApiKey: true },
   },
   {
     path: webhookPaths.get,
@@ -54,7 +54,11 @@ export const WebhookRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      controller: controllerNames.webhook.get.name,
+      requireApiKey: true,
+      requireAppSignature: true,
+    },
   },
   {
     path: webhookPaths.register,
@@ -78,7 +82,11 @@ export const WebhookRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      controller: controllerNames.webhook.register.name,
+      requireApiKey: true,
+      requireAppSignature: true,
+    },
   },
   {
     path: webhookPaths.toggle,
@@ -97,7 +105,7 @@ export const WebhookRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true },
+    handlerOptions: { controller: controllerNames.webhook.toggle.name, requireApiKey: true },
   },
   {
     path: webhookPaths.update,
@@ -126,7 +134,11 @@ export const WebhookRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      controller: controllerNames.webhook.update.name,
+      requireApiKey: true,
+      requireAppSignature: true,
+    },
   },
   {
     path: webhookPaths.delete,
@@ -145,6 +157,6 @@ export const WebhookRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true },
+    handlerOptions: { controller: controllerNames.webhook.delete.name, requireApiKey: true },
   },
 ]);

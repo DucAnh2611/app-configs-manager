@@ -29,12 +29,14 @@ export const getPaginationResponse = <T>(
   total: number
 ) => {
   return {
-    page: pagination.page,
-    size: pagination.size,
+    pagination: {
+      page: pagination.page,
+      size: pagination.size,
+      from: Math.min(total, !total ? 0 : (pagination.page - 1) * pagination.size + 1),
+      to: Math.min(total, pagination.page * pagination.size),
+    },
     sort,
     total,
-    from: Math.min(total, !total ? 0 : (pagination.page - 1) * pagination.size + 1),
-    to: Math.min(total, pagination.page * pagination.size),
     items: list,
   };
 };

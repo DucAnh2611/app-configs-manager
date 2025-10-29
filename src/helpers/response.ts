@@ -1,4 +1,5 @@
-import { NextFunction, RequestHandler, Response } from 'express';
+import dayjs from 'dayjs';
+import { NextFunction, Request, Response } from 'express';
 import { EErrorCode, EResponseStatus } from '../enums';
 import { logger } from '../libs';
 import {
@@ -84,6 +85,7 @@ const defaultRouteHandlerOption: TRouteHandlerOptions = {
   successCode: EResponseStatus.Ok,
   requireApiKey: false,
   requireAppSignature: false,
+  controller: null,
 };
 
 export const routeHandler =
@@ -107,6 +109,7 @@ export const routeHandler =
 
     const data = await toPromise(handler, req as any, res as any, next);
 
+    (req as any as TRequestBase).controller = options.controller;
     (res as any).successCode = combineOptions.successCode;
     (res as any).data = data;
 
@@ -114,7 +117,73 @@ export const routeHandler =
   };
 
 export const middlewareHandler =
-  (middleware: RequestHandler): TMiddlewareHandler<TRequest, Response> =>
+  <RQ extends TRequestBase = TRequestBase, RS extends Response = Response>(
+    middleware: TMiddlewareHandler<RQ, RS>
+  ): TMiddlewareHandler<TRequest, Response> =>
   async (req: TRequest, res: Response, next: NextFunction) => {
-    await toPromise(middleware, req, res, next);
+    await toPromise(middleware, req as any, res as any, next);
   };
+
+export const getAnalysticStartData = (req: Request) => {
+  const appReq = req as any as TRequestBase;
+  let duration: number | null = null;
+
+  if (appReq.reqStart) {
+    duration = dayjs().diff(dayjs(appReq.reqStart));
+  }
+
+  return {
+    method: req.method,
+    path: req.path,
+    latency: {
+      receive: appReq.reqStart ? dayjs(appReq.reqStart).toISOString() : null,
+      end: dayjs().toISOString(),
+      duration,
+    },
+    payload: {
+      body: req.body,
+      params: req.params,
+      query: req.query,
+    },
+  };
+};
+
+export const getAnalysticEndData = <T extends Success | Exception>(req: Request, data: T) => {
+  const appReq = req as any as TRequestBase;
+  let duration: number | null = null;
+
+  if (appReq.reqStart) {
+    duration = dayjs(appReq.reqStart).diff(dayjs());
+  }
+
+  return {
+    status: data.status,
+    method: req.method,
+    path: req.path,
+    auth: {
+      appSignature: appReq.appSign ?? null,
+      apikey: appReq.apiKey ?? null,
+    },
+    payload: {
+      request: { body: req.body, params: req.params, query: req.query },
+      validated: {
+        body: appReq.body,
+        params: appReq.params,
+        query: appReq.query,
+      },
+    },
+    handler: {
+      controller: appReq.controller || null,
+    },
+    middlewares: {
+      apiKeyType: appReq.apiKeyType,
+      dtos: appReq.dtos || [],
+    },
+    latency: {
+      receive: appReq.reqStart ? dayjs(appReq.reqStart).toISOString() : null,
+      end: dayjs().toISOString(),
+      duration,
+    },
+    response: data.resJson,
+  };
+};

@@ -39,3 +39,11 @@ export const getController = () => {
 
   return controllers;
 };
+
+export const controllerNames = {
+  apiKey: ApiKeyController.prototype,
+  app: AppController.prototype,
+  config: ConfigController.prototype,
+  webhook: WebhookController.prototype,
+  webhookHistory: WebhookHistoryController.prototype,
+};

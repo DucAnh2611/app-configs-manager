@@ -29,6 +29,7 @@ export const TestRouter = createRouter([
 
       return { query: req.query };
     },
+    handlerOptions: { controller: 'get' },
   },
   {
     path: webhookTestPaths.post,
@@ -56,5 +57,6 @@ export const TestRouter = createRouter([
 
       return { body: req.body, query: req.query };
     },
+    handlerOptions: { controller: 'test' },
   },
 ]);

@@ -1,5 +1,5 @@
 import { REQUEST_DEFAULT_FULLSEARCH, ROUTE_PATHS } from '../../../constants';
-import { getController } from '../../../controllers';
+import { controllerNames, getController } from '../../../controllers';
 import { EApiKeyType, EValidateDtoType } from '../../../enums';
 import { createRouter } from '../../../helpers';
 import { ValidateApiKey, ValidateDto } from '../../../middlewares';
@@ -28,7 +28,11 @@ export const WebhookHistoryRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.webhookHistory.list.name,
+    },
   },
   {
     path: webhookHistoryPaths.retry,
@@ -46,6 +50,10 @@ export const WebhookHistoryRouter = createRouter([
 
       return data;
     },
-    handlerOptions: { requireApiKey: true, requireAppSignature: true },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.webhookHistory.retry.name,
+    },
   },
 ]);

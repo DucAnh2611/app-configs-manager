@@ -1,12 +1,19 @@
 import { ValidationError } from 'class-validator';
 import { NextFunction, Request, Response, Router } from 'express';
-import { EApiKeyType, EResponseStatus } from '../enums';
+import { EApiKeyType, EResponseStatus, EValidateDtoType } from '../enums';
 
 export type TJwtApiKeyPayload = {
   appCode: string;
   type: EApiKeyType;
   key: string;
   appId: string;
+};
+
+export type TRequestAnalystic = Request & {
+  reqStart?: Date;
+  controller?: string | null;
+  apiKeyType?: EApiKeyType | null;
+  dtos?: Array<{ dto: any; type: EValidateDtoType }>;
 };
 
 export type TRequestValidatedDto<
@@ -89,25 +96,28 @@ export type TRouteHandlerOptions = {
   requireApiKey: boolean;
   requireAppSignature: boolean;
   successCode: EResponseStatus | number;
+  controller: string | null;
 };
 
 export type TRequestBase<
   B extends Object = any,
   Q extends Object = any,
   P extends Object = any,
-> = TRequestValidatedDto<B, Q, P> & Pick<TRequestAuth<B, Q, P>, 'appSign' | 'apiKey'>;
+> = TRequestValidatedDto<B, Q, P> &
+  Pick<TRequestAuth<B, Q, P>, 'appSign' | 'apiKey'> &
+  Pick<TRequestAnalystic, 'reqStart' | 'controller' | 'apiKeyType' | 'dtos'>;
 
 export type TRouterHandler<
   RQ extends TRequestBase = TRequestBase,
   RS extends Response = Response,
   T = unknown,
-> = (req: RQ, res: RS, next: NextFunction) => Promise<T>;
+> = (req: RQ, res: RS, next: NextFunction) => T | Promise<T>;
 
 export type TMiddlewareHandler<RQ extends Request = Request, RS extends Response = Response> = (
   req: RQ,
   res: RS,
   next: NextFunction
-) => Promise<void>;
+) => void | Promise<void>;
 
 export type TRoutes<
   RQ extends TRequestBase = TRequestBase,
