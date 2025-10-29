@@ -1,6 +1,5 @@
 import { Job, JobsOptions, Queue, Worker } from 'bullmq';
 import dayjs from 'dayjs';
-import { printGrid } from '../helpers';
 import { logger, Redis } from '../libs';
 
 export class QueueService {
@@ -76,18 +75,14 @@ export class QueueService {
   }
 
   private async printResultWorker(queueName: string, status: string) {
-    printGrid(
+    logger.debug(
       {
         queueName,
         status,
         time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       },
-      [
-        ['queueName', 'Name'],
-        ['status', 'Status'],
-        ['time', 'Time'],
-      ],
-      { name: `Worker Result of ${queueName}` }
+      'Worker Result of',
+      queueName
     );
   }
 }

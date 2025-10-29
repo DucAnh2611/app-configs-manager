@@ -1,7 +1,7 @@
 import CliTable3 from 'cli-table3';
 import wrap from 'wrap-ansi';
 import { logger } from '../libs';
-import { textColor } from './format-string';
+import { serialize, textColor } from './format-string';
 
 const terminalWidth = process.stdout?.columns ?? 240;
 
@@ -38,14 +38,14 @@ export const printAppTable = <T>(
 };
 
 type TGridRow = { label: string; data: string };
-
 type TOptionsFormatGrid = {
   name?: string;
   split: string;
   labelColMaxWidth: number;
-  labelColor: (str: string) => string;
-  dataColor: (str: string) => string;
-  tableNameColor: (str: string) => string;
+  colorize: boolean;
+  labelColor: typeof textColor;
+  dataColor: typeof textColor;
+  tableNameColor: typeof textColor;
 };
 
 const defaultOptionFormatGrid: TOptionsFormatGrid = {
@@ -54,6 +54,7 @@ const defaultOptionFormatGrid: TOptionsFormatGrid = {
   dataColor: textColor.white,
   split: '|',
   labelColMaxWidth: -1,
+  colorize: true,
 };
 
 export const printGrid = <T>(
@@ -95,7 +96,7 @@ export const createGrid = <T>(
 
     printPush = {
       label: fieldName,
-      data: typeof fieldData === 'object' ? JSON.stringify(fieldData) : String(fieldData),
+      data: serialize(fieldData),
     };
 
     prints.push(printPush);
@@ -105,23 +106,8 @@ export const createGrid = <T>(
 };
 
 const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
-  const prints = [],
-    widthContents = terminalWidth - 3;
-
-  if (options.name) {
-    prints.push(
-      [
-        `┌${''.padStart(terminalWidth - 3, '─')}┐`,
-        `│${options.tableNameColor(
-          options.name
-            .padEnd(Math.floor((terminalWidth - 3 + options.name.length) / 2))
-            .padStart(terminalWidth - 3)
-        )}│`,
-        `└${''.padStart(terminalWidth - 3, '─')}┘`,
-      ].join('\n')
-    );
-  }
-
+  const prints = [];
+  let widthContents = terminalWidth - 3;
   let maxLabelWidth = 0;
 
   for (const row of rows) {
@@ -133,6 +119,20 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
     data: 0,
     base: widthContents - (options.split?.length || 0),
   };
+
+  if (options.name) {
+    prints.push(
+      [
+        `┌${''.padStart(widthContents, '─')}┐`,
+        `│${options.tableNameColor(
+          options.name
+            .padEnd(Math.floor((widthContents + options.name.length) / 2))
+            .padStart(widthContents)
+        )}│`,
+        `└${''.padStart(widthContents, '─')}┘`,
+      ].join('\n')
+    );
+  }
 
   if (options.labelColMaxWidth! > 0) {
     maxLabelWidth = Math.min(

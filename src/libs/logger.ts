@@ -10,6 +10,7 @@ import {
   createGrid,
   deserialize,
   padNumberString,
+  resetTextStyle,
   serialize,
   textColor,
 } from '../helpers';
@@ -59,14 +60,7 @@ export class Log {
     return printf(({ level, message, timestamp, [Symbol.for('splat')]: splats = [] }) => {
       const levelTag = this.getLevelColor(level, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE);
 
-      const extras =
-        (splats as unknown[])
-          .map?.((v) =>
-            textColor.bgMagentaBright.bold(
-              boundString(serialize(v), LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE)
-            )
-          )
-          .join(', ') || 'EMPTY';
+      const extras = (splats as unknown[]).map?.(serialize).join(' ') || level.toUpperCase();
 
       return createGrid(
         {
@@ -74,17 +68,15 @@ export class Log {
             boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE)
           ),
           level: levelTag,
-          extras,
-          message,
+          message: serialize(deserialize(message as string), 2),
         },
         [
           ['timestamp', 'Log Time'],
           ['level', 'Type'],
-          ['extras', 'Tags'],
           ['message', 'Detail'],
         ],
         {
-          name: 'Logger',
+          name: extras,
           split: ':',
         }
       );
@@ -101,12 +93,14 @@ export class Log {
         .map?.((v) => boundString(serialize(v), LOGGER_CONSTANTS.BOUNDARY_META_FILE))
         .join(LOGGER_CONSTANTS.META_SPLIT) || '';
 
-    return [
-      boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_FILE),
-      extras ? `${LOGGER_CONSTANTS.META_SPLIT}${extras}` : '',
-      ':\n',
-      serialize(deserialize(message as string), 2),
-    ].join('');
+    return resetTextStyle(
+      [
+        boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_FILE),
+        extras ? `${LOGGER_CONSTANTS.META_SPLIT}${extras}` : '',
+        ': ',
+        message,
+      ].join('')
+    );
   }
 
   private getLogFilePath(level: ELoggerLevel) {

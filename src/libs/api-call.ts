@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { EErrorCode, EResponseStatus, EWebhookBodyType, EWebhookMethod } from '../enums';
-import { bindStringFormat, Exception, printGrid } from '../helpers';
+import { bindStringFormat, Exception, serialize } from '../helpers';
+import { logger } from './logger';
 
 type TOptions = {
   authHeader?: {
@@ -114,23 +115,13 @@ const getAxiosInstance = ({
           };
         }
 
-        printGrid(
-          {
-            type: 'Axios',
-            layer: 'Response',
-            state: 'OnFulfilled',
-            detail: JSON.stringify(detail),
-            path: response.config.url,
-          },
-          [
-            ['type', 'Error Type'],
-            ['layer', 'Layer'],
-            ['state', 'Layer State'],
-            ['detail', 'Detail'],
-            ['path', 'Url'],
-          ],
-          { name: 'Axios Error' }
-        );
+        logger.error({
+          type: 'Axios',
+          layer: 'Response',
+          state: 'OnFulfilled',
+          detail: serialize(detail),
+          path: response.config.url,
+        });
 
         throw new Exception(response.status, EErrorCode.API_CALL_ERROR);
       }
@@ -148,23 +139,13 @@ const getAxiosInstance = ({
         };
       }
 
-      printGrid(
-        {
-          type: 'Axios',
-          layer: 'Response',
-          state: 'OnFulfilled',
-          detail: JSON.stringify(detail),
-          path: error.response?.config.url || 'Unknown URL!',
-        },
-        [
-          ['type', 'Error Type'],
-          ['layer', 'Layer'],
-          ['state', 'Layer State'],
-          ['detail', 'Detail'],
-          ['path', 'Url'],
-        ],
-        { name: 'Axios Error' }
-      );
+      logger.error({
+        type: 'Axios',
+        layer: 'Response',
+        state: 'OnFulfilled',
+        detail: serialize(detail),
+        path: error.response?.config.url || 'Unknown URL!',
+      });
 
       throw new Exception(status, EErrorCode.API_CALL_ERROR);
     }
