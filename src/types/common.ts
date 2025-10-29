@@ -59,6 +59,7 @@ export type TResponse = {
   success: boolean;
   data?: unknown;
   error?: unknown;
+  msg?: unknown;
 };
 
 export type TResponseValidation = {

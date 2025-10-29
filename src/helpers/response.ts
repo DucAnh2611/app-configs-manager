@@ -56,8 +56,10 @@ export class Exception extends AppResponse implements IAppResponse {
 
   public get resJson(): TResponse {
     let error = this.error;
+    let message = null;
 
     if (error instanceof Error) {
+      message = error.message;
       logger.error(error.message);
       error = EErrorCode.UNKNOWN;
     }
@@ -65,6 +67,7 @@ export class Exception extends AppResponse implements IAppResponse {
     return {
       success: false,
       error: error,
+      msg: message,
     };
   }
 

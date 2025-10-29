@@ -1,4 +1,4 @@
-import { Like } from 'typeorm';
+import { IsNull, Like } from 'typeorm';
 import { EApiKeyType, EErrorCode, EResponseStatus } from '../enums';
 import { Exception, generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
 import { CacheKeyGenerator } from '../helpers/cache';
@@ -10,8 +10,8 @@ import {
   DtoApiKeyReset,
   DtoApiKeyToggle,
   DtoApiKeyUpdate,
-  DtoApiKeyValidate,
   IApiKey,
+  TApiKeyServiceCheck,
   TJwtApiKeyPayload,
 } from '../types';
 import { AppService } from './app';
@@ -26,32 +26,60 @@ export class ApiKeyService {
     private readonly cacheService: CacheService
   ) {}
 
-  public async validate(dto: DtoApiKeyValidate) {
-    const cacheKey = CacheKeyGenerator.apiKeyValidate(dto.appCode, dto.type);
+  public async validate(dto: TApiKeyServiceCheck) {
+    const cacheKey = CacheKeyGenerator.apiKeyValidate(
+      dto.code,
+      dto.type,
+      dto.namespace,
+      dto.apiKey
+    );
     const cached = await this.cacheService.get<boolean>(cacheKey);
     if (cached !== null) {
       return cached;
     }
 
+    const apikeyPayload = await this.extractPayload(dto.apiKey, dto.code, dto.namespace);
+
+    if (!apikeyPayload) {
+      throw new Exception(EResponseStatus.Forbidden, EErrorCode.APIKEY_PAYLOAD_EXTRACT_FAILED);
+    }
+
     const apiKeys = await this.apiKeyRepository.find({
       where: {
         app: {
-          code: dto.appCode,
+          code: dto.code,
         },
         type: dto.type,
+        publicKey: dto.type === EApiKeyType.THIRD_PARTY ? dto.publicKey : IsNull(),
         active: true,
+      },
+      select: {
+        id: false,
+        appId: false,
+        key: true,
+        type: false,
+        publicKey: false,
+        description: false,
+        active: false,
+        createdAt: false,
+        updatedAt: false,
+        revokedAt: false,
       },
     });
 
+    const { key } = apikeyPayload;
+
+    let validateResult = false;
+
     for (const apiKey of apiKeys) {
-      if (verify(dto.apiKey, apiKey.key)) {
-        await this.cacheService.set(cacheKey, true, 300);
-        return true;
+      if (verify(key, apiKey.key)) {
+        validateResult = true;
+        break;
       }
     }
 
-    await this.cacheService.set(cacheKey, false, 300);
-    return false;
+    await this.cacheService.set(cacheKey, validateResult, 300);
+    return validateResult;
   }
 
   public async toggle(dto: DtoApiKeyToggle) {

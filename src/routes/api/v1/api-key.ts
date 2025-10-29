@@ -17,7 +17,7 @@ export const ApiKeyRouter = createRouter([
 
       const resData = await apiKeyController.check(req.vBody);
 
-      return resData;
+      return { valid: resData };
     },
   },
 ]);

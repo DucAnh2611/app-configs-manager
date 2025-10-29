@@ -121,7 +121,7 @@ export class Log {
       return [
         boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_FILE),
         extras ? `${LOGGER_CONSTANTS.META_SPLIT}${extras}` : '',
-        ':',
+        ':\n',
         serialize(deserialize(message as string), 2),
       ].join('');
     });
