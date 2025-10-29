@@ -41,7 +41,8 @@ export const initServices = async () => {
   const webhookService = new WebhookService(
     webhookRepository,
     configRepository,
-    webhookHistoryService
+    webhookHistoryService,
+    cacheService
   );
   const configService = new ConfigService(configRepository, cacheService, webhookService);
   const appService = new AppService(appRepository, cacheService, configService);
