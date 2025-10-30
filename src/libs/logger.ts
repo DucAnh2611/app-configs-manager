@@ -9,8 +9,8 @@ import {
   boundString,
   createGrid,
   deserialize,
+  GridData,
   padNumberString,
-  resetTextStyle,
   serialize,
   textColor,
 } from '../helpers';
@@ -33,74 +33,114 @@ export class Log {
     });
   }
 
-  public error<T>(data: T, ...meta: any[]) {
+  public error<T>(data: T | GridData<T>, ...meta: any[]) {
     this.log(ELoggerLevel.ERROR, data, ...meta);
   }
 
-  public warn<T>(data: T, ...meta: any[]) {
+  public warn<T>(data: T | GridData<T>, ...meta: any[]) {
     this.log(ELoggerLevel.WARN, data, ...meta);
   }
 
-  public info<T>(data: T, ...meta: any[]) {
+  public info<T>(data: T | GridData<T>, ...meta: any[]) {
     this.log(ELoggerLevel.INFO, data, ...meta);
   }
 
-  public debug<T>(data: T, ...meta: any[]) {
+  public debug<T>(data: T | GridData<T>, ...meta: any[]) {
     this.log(ELoggerLevel.DEBUG, data, ...meta);
   }
 
-  private log<T>(level: ELoggerLevel, data: T, ...meta: any[]) {
+  private log<T>(level: ELoggerLevel, data: T | GridData<T>, ...meta: any[]) {
     const message = serialize(data);
 
-    this.writeLogFile(level, message, ...meta);
+    this.writeLogFile<T>(level, data, ...meta);
     this.logger.log(this.getLevel(level), message, ...meta);
   }
 
   private get formatConsole() {
-    return printf(({ level, message, timestamp, [Symbol.for('splat')]: splats = [] }) => {
-      const levelTag = this.getLevelColor(level, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE);
+    return printf(
+      ({
+        level,
+        message,
+        timestamp,
+        [Symbol.for('splat')]: splats = [],
+      }: winston.Logform.TransformableInfo) => {
+        const { detail } = this.getMessageData(message, 'console');
 
-      const extras = (splats as unknown[]).map?.(serialize).join(' ') || level.toUpperCase();
+        const levelTag = this.getLevelColor(level, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE);
 
-      return createGrid(
-        {
-          timestamp: textColor.greenBright.bold(
-            boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE)
-          ),
-          level: levelTag,
-          message: serialize(deserialize(message as string), 2),
-        },
-        [
-          ['timestamp', 'Log Time'],
-          ['level', 'Type'],
-          ['message', 'Detail'],
-        ],
-        {
-          name: extras,
-          split: ':',
-        }
-      );
-    });
+        const extras = (splats as unknown[]).map?.(serialize).join(' ') || level.toUpperCase();
+
+        return createGrid(
+          {
+            timestamp: textColor.greenBright.bold(
+              boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE)
+            ),
+            level: levelTag,
+            message: detail,
+          },
+          [
+            ['timestamp', 'Log Time'],
+            ['level', 'Type'],
+            ['message', 'Detail'],
+          ],
+          {
+            name: extras,
+            split: ':',
+          }
+        ).create();
+      }
+    );
   }
 
-  private formatFile({
+  private formatFile<T>({
     message,
     timestamp,
     [Symbol.for('splat')]: splats = [],
   }: winston.Logform.TransformableInfo): string {
+    const { detail, isGrid } = this.getMessageData(message, 'file');
+
     const extras =
       (splats as unknown[])
         .map?.((v) => boundString(serialize(v), LOGGER_CONSTANTS.BOUNDARY_META_FILE))
         .join(LOGGER_CONSTANTS.META_SPLIT) || '';
 
-    return resetTextStyle(
-      [
-        boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_FILE),
-        extras ? `${LOGGER_CONSTANTS.META_SPLIT}${extras}` : '',
-        ': ',
-        message,
-      ].join('')
-    );
+    return [
+      boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_FILE),
+      extras ? `${LOGGER_CONSTANTS.META_SPLIT}${extras}` : '',
+      ': ',
+      isGrid ? '\n' : '',
+      this.getPrintMessage<T>(detail),
+    ].join('');
+  }
+
+  private getPrintMessage<T = any>(data: string | Object | GridData<T>) {
+    if (typeof data === 'object' && data instanceof GridData) {
+      return data.setOptions({ colorize: false, width: 200 }).create();
+    }
+
+    return serialize(data, 2);
+  }
+
+  private getMessageData(message: unknown, type: 'file' | 'console') {
+    const serialized: any | { data: any | Object } = deserialize(message as string);
+
+    let detail: string | Object = 'EMPTY';
+    let isGrid = false;
+
+    if (typeof serialized === 'string' || typeof serialized === 'number') {
+      detail = String(serialized);
+    } else if (typeof serialized?.data === 'object' && serialized?.isGrid) {
+      const gridData = serialized as any;
+
+      detail = new GridData<typeof gridData>(gridData.data, gridData.fields, gridData.options);
+      isGrid = true;
+    } else if (typeof serialized?.data === 'object' && !serialized?.isGrid) {
+      detail = serialize(serialized.data, type === 'file' ? 2 : 0);
+    } else {
+      detail = serialized;
+    }
+
+    return { detail, isGrid };
   }
 
   private getLogFilePath(level: ELoggerLevel) {
@@ -125,12 +165,12 @@ export class Log {
     return filePath;
   }
 
-  private writeLogFile(level: ELoggerLevel, message: string, ...meta: any[]) {
+  private writeLogFile<T>(level: ELoggerLevel, message: T | GridData<T>, ...meta: any[]) {
     const filePath = this.getLogFilePath(level);
 
     fs.writeFileSync(
       filePath,
-      this.formatFile({
+      this.formatFile<T>({
         message,
         level,
         timestamp: dayjs().format(LOGGER_CONSTANTS.FORMAT_TIMESTAMP),

@@ -1,7 +1,7 @@
 import CliTable3 from 'cli-table3';
 import wrap from 'wrap-ansi';
 import { logger } from '../libs';
-import { serialize, textColor } from './format-string';
+import { removeEndlines, resetTextStyle, serialize, textColor } from './format-string';
 
 const terminalWidth = process.stdout?.columns ?? 240;
 
@@ -37,7 +37,10 @@ export const printAppTable = <T>(
   logger.info(table.toString());
 };
 
-type TGridRow = { label: string; data: string };
+type TGridRow = { label: string; data: string | any };
+
+type TField<T> = keyof T | [keyof T, string];
+
 type TOptionsFormatGrid = {
   name?: string;
   split: string;
@@ -46,6 +49,7 @@ type TOptionsFormatGrid = {
   labelColor: typeof textColor;
   dataColor: typeof textColor;
   tableNameColor: typeof textColor;
+  width: number;
 };
 
 const defaultOptionFormatGrid: TOptionsFormatGrid = {
@@ -55,11 +59,70 @@ const defaultOptionFormatGrid: TOptionsFormatGrid = {
   split: '|',
   labelColMaxWidth: -1,
   colorize: true,
+  width: terminalWidth,
 };
+
+export class GridData<T = any> {
+  private readonly isGrid = true;
+
+  constructor(
+    private data: T,
+    private fields: Array<TField<T>>,
+    private options: Partial<TOptionsFormatGrid> = {}
+  ) {}
+
+  public setOptions(options: Partial<TOptionsFormatGrid> = {}) {
+    this.options = {
+      ...this.options,
+      ...options,
+    };
+
+    return this;
+  }
+
+  public create() {
+    const opts: TOptionsFormatGrid = {
+      ...defaultOptionFormatGrid,
+      ...this.options,
+    };
+
+    const prints: TGridRow[] = [];
+
+    this.fields.forEach((f) => {
+      let printPush: TGridRow = {
+        label: '',
+        data: '',
+      };
+      let fieldName = '',
+        fieldData: any = '';
+
+      if (typeof f === 'object' && Array.isArray(f)) {
+        const [name, alias] = f;
+
+        if (!this.data[name]) return;
+
+        fieldData = this.data[name];
+        fieldName = alias;
+      } else if (typeof f === 'string') {
+        fieldData = this.data[f];
+        fieldName = f;
+      }
+
+      printPush = {
+        label: fieldName,
+        data: fieldData,
+      };
+
+      prints.push(printPush);
+    });
+
+    return formatGrid(prints, opts);
+  }
+}
 
 export const printGrid = <T>(
   data: T,
-  fields: Array<keyof T | [keyof T, string]>,
+  fields: Array<TField<T>>,
   options: Partial<TOptionsFormatGrid> = {}
 ) => {
   logger.info(createGrid(data, fields, options));
@@ -67,47 +130,15 @@ export const printGrid = <T>(
 
 export const createGrid = <T>(
   data: T,
-  fields: Array<keyof T | [keyof T, string]>,
+  fields: Array<TField<T>>,
   options: Partial<TOptionsFormatGrid> = {}
 ) => {
-  const opts: TOptionsFormatGrid = {
-    ...defaultOptionFormatGrid,
-    ...options,
-  };
-
-  const prints: TGridRow[] = [];
-
-  fields.forEach((f) => {
-    let printPush: TGridRow = { label: '', data: '' };
-    let fieldName = '',
-      fieldData: any = '';
-
-    if (typeof f === 'object' && Array.isArray(f)) {
-      const [name, alias] = f;
-
-      if (!data[name]) return;
-
-      fieldData = data[name];
-      fieldName = alias;
-    } else if (typeof f === 'string') {
-      fieldData = data[f];
-      fieldName = f;
-    }
-
-    printPush = {
-      label: fieldName,
-      data: serialize(fieldData),
-    };
-
-    prints.push(printPush);
-  });
-
-  return formatGrid(prints, opts);
+  return new GridData<T>(data, fields, options);
 };
 
 const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
   const prints = [];
-  let widthContents = terminalWidth - 3;
+  let widthContents = options.width - 3;
   let maxLabelWidth = 0;
 
   for (const row of rows) {
@@ -134,7 +165,7 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
     );
   }
 
-  if (options.labelColMaxWidth! > 0) {
+  if (options.labelColMaxWidth > 0) {
     maxLabelWidth = Math.min(
       Math.ceil(widthContents * (options.labelColMaxWidth / 100)),
       maxLabelWidth
@@ -147,47 +178,84 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
   prints.push(
     rows
       .map((row) => {
-        const maxLines = Math.max(
-          Math.ceil(row.label.length / width.label),
-          Math.ceil(row.data.length / width.data)
-        );
+        let rowData = row.data,
+          isNestedGrid = false,
+          rowDataLength = width.data;
+
+        const factor = 2 / 3;
+        const childGridWidth = options.width * factor;
+        if (typeof rowData === 'object' && !!rowData.isGrid) {
+          rowData = removeEndlines(
+            new GridData(rowData.data || {}, rowData.fields || [], rowData.options || {})
+              .setOptions({ width: childGridWidth, colorize: false })
+              .create()
+          );
+
+          isNestedGrid = true;
+          rowDataLength = childGridWidth - 1 / factor;
+        } else {
+          rowData = serialize(rowData);
+        }
+
+        const linesLabel = Math.ceil(row.label.length / width.label);
+        const linesData = isNestedGrid
+          ? Math.ceil(rowData.length / childGridWidth)
+          : Math.ceil(rowData.length / width.data);
+        let maxLines = Math.max(linesLabel, linesData);
+
+        if (isNestedGrid) {
+          maxLines = linesLabel + linesData;
+        }
 
         let lines: string[] = [];
 
         for (let line = 0; line < maxLines; line++) {
           let lineContent: string[] = [];
+          const offsetDataRow = isNestedGrid ? linesLabel : 0;
+          const lineLabel = (
+            row.label.slice(
+              line * width.label,
+              Math.min((line + 1) * width.label, row.label.length)
+            ) || ''
+          ).padEnd(width.label);
+          const lineData = (
+            rowData.slice(
+              (line - offsetDataRow) * rowDataLength,
+              Math.min((line - offsetDataRow + 1) * rowDataLength, rowData.length)
+            ) || ''
+          ).padEnd(rowDataLength);
+
+          if (isNestedGrid) {
+            if (line < linesLabel) {
+              lineContent.push(options.labelColor(lineLabel), ' ', line > 0 ? '' : options.split);
+
+              lines.push(lineContent.join(''));
+              continue;
+            }
+
+            lineContent.push(options.dataColor(lineData));
+
+            lines.push(lineContent.join(''));
+            continue;
+          }
 
           lineContent.push(
-            options.labelColor(
-              (
-                row.label.slice(
-                  line * width.label,
-                  Math.min((line + 1) * width.label, row.label.length)
-                ) || ''
-              ).padEnd(width.label)
-            )
+            options.labelColor(lineLabel),
+            ' ',
+            line > 0 ? ' ' : options.split,
+            ' ',
+            options.dataColor(lineData)
           );
 
-          lineContent.push(line > 0 ? ' ' : options.split);
-
-          lineContent.push(
-            options.dataColor(
-              (
-                row.data.slice(
-                  line * width.data,
-                  Math.min((line + 1) * width.data, row.data.length)
-                ) || ''
-              ).padEnd(width.data)
-            )
-          );
-
-          lines.push(lineContent.join(' '));
+          lines.push(lineContent.join(''));
         }
 
         return lines.join('\n');
       })
       .join('\n')
   );
+
+  if (!options.colorize) return resetTextStyle(prints.join('\n'));
 
   return prints.join('\n');
 };

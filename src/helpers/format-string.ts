@@ -104,3 +104,7 @@ export const padNumberString = (num: number | string, length?: number) => {
 
   return extNum.padStart(length || extNum.length, '0');
 };
+
+export const removeEndlines = (str: string): string => {
+  return str.replace(/\r?\n/g, '');
+};

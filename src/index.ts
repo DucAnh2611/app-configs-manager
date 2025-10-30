@@ -4,7 +4,7 @@ import { initControllers } from './controllers';
 import { initCronJob } from './cron';
 import { AppDataSource } from './db';
 import { EErrorCode, EResponseStatus } from './enums';
-import { Exception } from './helpers';
+import { createGrid, Exception } from './helpers';
 import { connectRedis, env, logger } from './libs';
 import { AnalysticHandler, ErrorHandler, ResponseHandler } from './middlewares';
 import { ApiRouter, WebhookRouter } from './routes';
@@ -49,6 +49,20 @@ async function main() {
 
   app.listen(PORT, () => {
     logger.info(`✅ Server is running on http://localhost:${PORT}`);
+    logger.info(
+      createGrid(
+        {
+          test: true,
+          long: 'asbdfuiabs dfsadif hasfasuhdfuoi ashdofu hasf uisa fashduiffhasuif hashfa suofashdfuihasu dfhua hfuifad sduif a ufhuias hfuah sdf',
+        },
+        [
+          ['test', 'Test'],
+          ['long', 'Long Text'],
+        ],
+        { name: 'this is test' }
+      )
+    );
+    logger.info({ test: true });
   });
 }
 
