@@ -2,7 +2,7 @@ import { In, Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
 import { EErrorCode, EResponseStatus, EWebhookTriggerOn, EWebhookTriggerType } from '../enums';
-import { CacheKeyGenerator, decrypt, encrypt, Exception } from '../helpers';
+import { CacheKeyGenerator, decrypt, encrypt, Exception, excludeFields } from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
   IApp,
@@ -359,7 +359,7 @@ export class ConfigService {
     await this.webhookService.trigger({
       appCode: appCode,
       appId: appId,
-      data: this.decodeConfig(data),
+      data: excludeFields(this.decodeConfig(data), ['app', 'deletedAt']),
       triggerOn: EWebhookTriggerOn.CONFIG,
       triggerType,
     });
