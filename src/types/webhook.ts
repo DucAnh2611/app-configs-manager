@@ -81,6 +81,7 @@ export type TWebhookHistoryServiceUpdate = {
 export type TWebhookHistoryServiceCreate = {
   webhookId: string;
   data: Object;
+  webhookSnapshot: TWebhookSnapshot;
 };
 
 export type TWebhookHistoryServiceList = TPagination &
@@ -92,4 +93,19 @@ export type TWebhookHistoryServiceList = TPagination &
 
 export type TWebhookHistoryServiceRetry = {
   webhookHistoryId: string;
+};
+
+export type TWebhookSnapshot = {
+  id: string;
+  appId: string;
+  name: string;
+  triggerType: EWebhookTriggerType;
+  triggerOn: EWebhookTriggerOn;
+  targetUrl: string;
+  method: EWebhookMethod;
+  authKey: string | null;
+  bodyType: EWebhookBodyType | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 };

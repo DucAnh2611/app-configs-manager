@@ -6,7 +6,7 @@ import {
   EWebhookTriggerOn,
   EWebhookTriggerType,
 } from '../enums';
-import { TWebhookHistoryLog } from './webhook';
+import { TWebhookHistoryLog, TWebhookSnapshot } from './webhook';
 
 export interface IApiKey {
   id: string;
@@ -53,6 +53,7 @@ export interface IWebhookHistory {
   status: EWebhookHistoryStatus;
   logs: Array<TWebhookHistoryLog>;
   data: Object;
+  webhookSnapshot: TWebhookSnapshot | null;
   isSuccess: boolean;
   createdAt: Date;
   updatedAt: Date;

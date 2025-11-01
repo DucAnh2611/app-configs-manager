@@ -76,7 +76,7 @@ export class WebhookService {
         method: (dto.method as EWebhookMethod) ?? webhook.method,
         authKey: !!dto.authKey
           ? await this.encryptAuthKey(dto.authKey, dto.appCode, dto.appNamespace)
-          : webhook.authKey,
+          : null,
         bodyType: (dto.bodyType as EWebhookBodyType) ?? webhook.bodyType,
       }
     );
@@ -174,6 +174,7 @@ export class WebhookService {
       await this.webhookHistoryService.create({
         data: dto.data,
         webhookId: triggered.id,
+        webhookSnapshot: triggered,
       });
     }
   }

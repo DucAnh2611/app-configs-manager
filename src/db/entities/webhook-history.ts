@@ -32,6 +32,10 @@ export const WebhookHistoryEntity = new EntitySchema<IWebhookHistory>({
       type: 'jsonb',
       default: {},
     },
+    webhookSnapshot: {
+      type: 'jsonb',
+      default: null,
+    },
     createdAt: {
       type: 'timestamp with time zone',
       createDate: true,

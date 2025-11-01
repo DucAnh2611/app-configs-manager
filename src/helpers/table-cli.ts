@@ -183,8 +183,8 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
           rowDataLength = width.data;
 
         const factor = 2 / 3;
-        const childGridWidth = options.width * factor;
-        if (typeof rowData === 'object' && !!rowData.isGrid) {
+        const childGridWidth = Math.floor(options.width * factor);
+        if (typeof rowData === 'object' && !!rowData?.isGrid) {
           rowData = removeEndlines(
             new GridData(rowData.data || {}, rowData.fields || [], rowData.options || {})
               .setOptions({ width: childGridWidth, colorize: false })
@@ -192,7 +192,7 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
           );
 
           isNestedGrid = true;
-          rowDataLength = childGridWidth - 1 / factor;
+          rowDataLength = childGridWidth - Math.floor(1 / factor);
         } else {
           rowData = serialize(rowData);
         }

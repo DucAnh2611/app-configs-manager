@@ -105,6 +105,14 @@ const getAxiosInstance = ({
 
   axiosInstance.interceptors.response.use(
     (response: AxiosResponse) => {
+      const logData: any = {
+        type: 'Axios',
+        layer: 'Response',
+        state: 'OnFulfilled',
+        method: response.config.method,
+        path: response.config.url,
+      };
+
       if (response.status > 299 || response.status < 200) {
         let detail = response.data;
 
@@ -115,16 +123,18 @@ const getAxiosInstance = ({
           };
         }
 
-        logger.error({
-          type: 'Axios',
-          layer: 'Response',
-          state: 'OnFulfilled',
-          detail: serialize(detail),
-          path: response.config.url,
-        });
+        logData.detail = serialize(detail);
+        logData.success = false;
+
+        logger.error(logData, 'Axios Response', 'Error');
 
         throw new Exception(response.status, EErrorCode.API_CALL_ERROR);
       }
+
+      logData.data = serialize(response.data);
+      logData.success = true;
+
+      logger.info(logData, 'Axios Response', 'Success');
 
       return response.data;
     },

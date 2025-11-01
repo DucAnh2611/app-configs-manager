@@ -42,9 +42,6 @@ export class WebhookHistoryService {
           appId: payload.appId,
         },
       },
-      relations: {
-        webhook: true,
-      },
       select: {
         id: true,
         webhookId: false,
@@ -54,17 +51,7 @@ export class WebhookHistoryService {
         isSuccess: true,
         createdAt: true,
         updatedAt: true,
-        webhook: {
-          id: true,
-          appId: false,
-          method: true,
-          name: true,
-          triggerOn: true,
-          triggerType: true,
-          targetUrl: true,
-          bodyType: false,
-          isActive: true,
-        },
+        webhookSnapshot: true,
       },
       ...getPaginationQuery(payload, order),
     });
@@ -91,19 +78,22 @@ export class WebhookHistoryService {
   }
 
   public async create(payload: TWebhookHistoryServiceCreate) {
-    const saved = await this.webhookHistoryRepository.save({
+    const instance = await this.webhookHistoryRepository.create({
       isSuccess: false,
       status: EWebhookHistoryStatus.IN_QUEUE,
       logs: [
         {
           status: EWebhookHistoryStatus.IN_QUEUE,
-          timestamp: new Date().toISOString(),
+          timestamp: dayjs().toISOString(),
           detail: 'Created',
         },
       ],
       data: payload.data,
       webhookId: payload.webhookId,
+      webhookSnapshot: payload.webhookSnapshot,
     });
+
+    const saved = await this.webhookHistoryRepository.save(instance);
 
     return saved;
   }
@@ -120,10 +110,21 @@ export class WebhookHistoryService {
       throw new Exception(EResponseStatus.BadRequest, EErrorCode.WEBHOOK_HISTORY_RETRY_NOT_ALLOWED);
     }
 
-    await this.create({
-      webhookId: isExist.webhookId,
-      data: isExist.data,
-    });
+    await this.webhookHistoryRepository.update(
+      { id: payload.webhookHistoryId },
+      {
+        isSuccess: isExist.isSuccess,
+        logs: [
+          ...isExist.logs,
+          {
+            status: EWebhookHistoryStatus.IN_QUEUE,
+            timestamp: dayjs().toISOString(),
+            detail: 'Retry',
+          },
+        ],
+        status: EWebhookHistoryStatus.IN_QUEUE,
+      }
+    );
 
     return { scheduled: true };
   }
@@ -152,7 +153,13 @@ export class WebhookHistoryService {
         COMMON_CONFIG.APP_ENV
       );
 
-      const webhookConfig = queueWebhook.webhook!;
+      const webhookConfig = queueWebhook.webhookSnapshot;
+
+      if (!webhookConfig)
+        throw new Exception(
+          EResponseStatus.Conflict,
+          EErrorCode.WEBHOOK_HISTORY_CALL_MISSING_WEBHOOK_SNAPSHORT
+        );
 
       const axios = getAxios({
         method: webhookConfig.method,
@@ -178,10 +185,8 @@ export class WebhookHistoryService {
           {
             status: EWebhookHistoryStatus.SUCCESS,
             timestamp: dayjs().toISOString(),
-            detail: {
-              data: queueWebhook.data,
-              response: res,
-            },
+            data: queueWebhook.data,
+            detail: res,
           },
         ],
         status: EWebhookHistoryStatus.SUCCESS,
@@ -237,9 +242,6 @@ export class WebhookHistoryService {
       where: {
         status: EWebhookHistoryStatus.IN_QUEUE,
         updatedAt: MoreThanOrEqual(dayjs().subtract(time, unit).toDate()),
-      },
-      relations: {
-        webhook: true,
       },
     });
 
