@@ -12,6 +12,7 @@ import {
   GridData,
   padNumberString,
   serialize,
+  TableData,
   textColor,
 } from '../helpers';
 
@@ -33,23 +34,23 @@ export class Log {
     });
   }
 
-  public error<T>(data: T | GridData<T>, ...meta: any[]) {
+  public error<T>(data: T | GridData<T> | TableData<T>, ...meta: any[]) {
     this.log(ELoggerLevel.ERROR, data, ...meta);
   }
 
-  public warn<T>(data: T | GridData<T>, ...meta: any[]) {
+  public warn<T>(data: T | GridData<T> | TableData<T>, ...meta: any[]) {
     this.log(ELoggerLevel.WARN, data, ...meta);
   }
 
-  public info<T>(data: T | GridData<T>, ...meta: any[]) {
+  public info<T>(data: T | GridData<T> | TableData<T>, ...meta: any[]) {
     this.log(ELoggerLevel.INFO, data, ...meta);
   }
 
-  public debug<T>(data: T | GridData<T>, ...meta: any[]) {
+  public debug<T>(data: T | GridData<T> | TableData<T>, ...meta: any[]) {
     this.log(ELoggerLevel.DEBUG, data, ...meta);
   }
 
-  private log<T>(level: ELoggerLevel, data: T | GridData<T>, ...meta: any[]) {
+  private log<T>(level: ELoggerLevel, data: T | GridData<T> | TableData<T>, ...meta: any[]) {
     const message = serialize(data);
 
     this.writeLogFile<T>(level, data, ...meta);
@@ -64,7 +65,7 @@ export class Log {
         timestamp,
         [Symbol.for('splat')]: splats = [],
       }: winston.Logform.TransformableInfo) => {
-        const { detail } = this.getMessageData(message, 'console');
+        const { detail } = this.getMessageData(message);
 
         const levelTag = this.getLevelColor(level, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE);
 
@@ -97,7 +98,7 @@ export class Log {
     timestamp,
     [Symbol.for('splat')]: splats = [],
   }: winston.Logform.TransformableInfo): string {
-    const { detail, isGrid } = this.getMessageData(message, 'file');
+    const { detail, isGrid, isTable } = this.getMessageData(message);
 
     const extras =
       (splats as unknown[])
@@ -108,39 +109,47 @@ export class Log {
       boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_FILE),
       extras ? `${LOGGER_CONSTANTS.META_SPLIT}${extras}` : '',
       ': ',
-      isGrid ? '\n' : '',
+      isGrid || isTable ? '\n' : '',
       this.getPrintMessage<T>(detail),
     ].join('');
   }
 
   private getPrintMessage<T = any>(data: string | Object | GridData<T>) {
-    if (typeof data === 'object' && data instanceof GridData) {
-      return data.setOptions({ colorize: false, width: 200 }).create();
+    if (typeof data === 'object') {
+      if (data instanceof GridData)
+        return data.setOptions({ colorize: false, width: 200 }).create();
+      if (data instanceof TableData) return data.create({ colorize: false });
     }
 
     return serialize(data, 2);
   }
 
-  private getMessageData(message: unknown, type: 'file' | 'console') {
+  private getMessageData(message: unknown) {
     const serialized: any | { data: any | Object } = deserialize(message as string);
 
     let detail: string | Object = 'EMPTY';
-    let isGrid = false;
+    let isGrid = false,
+      isTable = false;
 
     if (typeof serialized === 'string' || typeof serialized === 'number') {
       detail = String(serialized);
-    } else if (typeof serialized?.data === 'object' && serialized?.isGrid) {
+    } else if (GridData.isGridData(serialized)) {
       const gridData = serialized as any;
 
       detail = new GridData<typeof gridData>(gridData.data, gridData.fields, gridData.options);
       isGrid = true;
+    } else if (TableData.isTableData(serialized)) {
+      const gridData = serialized as any;
+
+      detail = new TableData<typeof gridData>(gridData.data, gridData.fields, gridData.options);
+      isTable = true;
     } else if (typeof serialized?.data === 'object' && !serialized?.isGrid) {
-      detail = serialize(serialized.data, type === 'file' ? 2 : 0);
+      detail = serialize(0);
     } else {
       detail = serialized;
     }
 
-    return { detail, isGrid };
+    return { detail, isGrid, isTable };
   }
 
   private getLogFilePath(level: ELoggerLevel) {
@@ -154,7 +163,7 @@ export class Log {
         minute: padNumberString(logTimestamp.minute(), 2),
         hour: padNumberString(logTimestamp.hour(), 2),
         date: padNumberString(logTimestamp.date(), 2),
-        month: padNumberString(logTimestamp.month(), 2),
+        month: padNumberString(logTimestamp.month() + 1, 2),
         year: logTimestamp.year(),
       })
     );
@@ -165,7 +174,11 @@ export class Log {
     return filePath;
   }
 
-  private writeLogFile<T>(level: ELoggerLevel, message: T | GridData<T>, ...meta: any[]) {
+  private writeLogFile<T>(
+    level: ELoggerLevel,
+    message: T | GridData<T> | TableData<T>,
+    ...meta: any[]
+  ) {
     const filePath = this.getLogFilePath(level);
 
     fs.writeFileSync(

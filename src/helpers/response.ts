@@ -48,11 +48,17 @@ export class Success extends AppResponse implements IAppResponse {
 
 export class Exception extends AppResponse implements IAppResponse {
   private error: EErrorCode | unknown;
+  private detail?: unknown;
 
-  constructor(status: EResponseStatus | number, error: EErrorCode | TResponseValidation[] | Error) {
+  constructor(
+    status: EResponseStatus | number,
+    error: EErrorCode | TResponseValidation[] | Error,
+    detail?: unknown
+  ) {
     super(status);
 
     this.error = error;
+    this.detail = detail;
   }
 
   public get resJson(): TResponse {
@@ -69,6 +75,7 @@ export class Exception extends AppResponse implements IAppResponse {
       success: false,
       error: error,
       msg: message,
+      detail: this.detail,
     };
   }
 
@@ -135,6 +142,8 @@ export const getAnalysticStartData = (req: Request) => {
   return {
     method: req.method,
     path: req.path,
+    ip: req.ip,
+    hostname: req.hostname,
     latency: {
       receive: appReq.reqStart ? dayjs(appReq.reqStart).toISOString() : null,
       end: dayjs().toISOString(),
@@ -152,14 +161,18 @@ export const getAnalysticEndData = <T extends Success | Exception>(req: Request,
   const appReq = req as any as TRequestBase;
   let duration: number | null = null;
 
+  const unit: dayjs.QUnitType = 'ms';
+
   if (appReq.reqStart) {
-    duration = dayjs(appReq.reqStart).diff(dayjs());
+    duration = dayjs().diff(appReq.reqStart, unit);
   }
 
   return {
     status: data.status,
     method: req.method,
     path: req.path,
+    ip: req.ip,
+    hostname: req.hostname,
     auth: {
       appSignature: appReq.appSign ?? null,
       apikey: appReq.apiKey ?? null,
@@ -182,7 +195,7 @@ export const getAnalysticEndData = <T extends Success | Exception>(req: Request,
     latency: {
       receive: appReq.reqStart ? dayjs(appReq.reqStart).toISOString() : null,
       end: dayjs().toISOString(),
-      duration,
+      duration: `${duration}${unit}`,
     },
     response: data.resJson,
   };

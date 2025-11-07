@@ -6,7 +6,7 @@ import { AppDataSource } from './db';
 import { EErrorCode, EResponseStatus } from './enums';
 import { Exception } from './helpers';
 import { connectRedis, env, logger } from './libs';
-import { AnalysticHandler, ErrorHandler, ResponseHandler } from './middlewares';
+import { AnalysticHandler, ErrorHandler, rateLimitHandler, ResponseHandler } from './middlewares';
 import { ApiRouter, WebhookRouter } from './routes';
 import { initServices } from './services';
 
@@ -23,6 +23,8 @@ async function main() {
   initControllers();
 
   initCronJob();
+
+  app.use(rateLimitHandler());
 
   const appPaths = ROUTE_PATHS;
 

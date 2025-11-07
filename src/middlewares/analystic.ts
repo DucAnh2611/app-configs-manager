@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { NextFunction, Request, Response } from 'express';
 import { getAnalysticStartData } from '../helpers';
 import { logger } from '../libs';
@@ -11,7 +12,7 @@ export const AnalysticHandler = (req: Request, _: Response, next: NextFunction) 
     dtos: [],
     controller: null,
     apiKeyType: null,
-    reqStart: new Date(),
+    reqStart: dayjs(req.headers.date ?? new Date()).toDate(),
   };
 
   Object.entries(map).forEach(([f, v]) => {

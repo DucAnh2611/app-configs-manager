@@ -16,6 +16,13 @@ export type TRequestAnalystic = Request & {
   dtos?: Array<{ dto: any; type: EValidateDtoType }>;
 };
 
+export type TRequestRateLimit = Request & {
+  rateLimit: {
+    remaining: number;
+    allow: boolean;
+  };
+};
+
 export type TRequestValidatedDto<
   B extends Object = any,
   Q extends Object = any,
@@ -67,6 +74,7 @@ export type TResponse = {
   data?: unknown;
   error?: unknown;
   msg?: unknown;
+  detail?: unknown;
 };
 
 export type TResponseValidation = {
@@ -105,7 +113,8 @@ export type TRequestBase<
   P extends Object = any,
 > = TRequestValidatedDto<B, Q, P> &
   Pick<TRequestAuth<B, Q, P>, 'appSign' | 'apiKey'> &
-  Pick<TRequestAnalystic, 'reqStart' | 'controller' | 'apiKeyType' | 'dtos'>;
+  Pick<TRequestAnalystic, 'reqStart' | 'controller' | 'apiKeyType' | 'dtos'> &
+  Pick<TRequestRateLimit, 'rateLimit'>;
 
 export type TRouterHandler<
   RQ extends TRequestBase = TRequestBase,

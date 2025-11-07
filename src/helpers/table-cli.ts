@@ -5,36 +5,82 @@ import { removeEndlines, resetTextStyle, serialize, textColor } from './format-s
 
 const terminalWidth = process.stdout?.columns ?? 240;
 
+type TOptionsTableData<T extends Object = any> = {
+  slideStr: Array<keyof T>;
+  style: Partial<CliTable3.TableConstructorOptions['style']>;
+  colorize: boolean;
+  width: number;
+};
+
+const defaultOptionsTableData: TOptionsTableData = {
+  slideStr: [],
+  style: {},
+  colorize: true,
+  width: terminalWidth,
+};
+
+export class TableData<T = any> {
+  private readonly isTable = true;
+
+  constructor(
+    private data: T[],
+    private fields: Array<[keyof T, string] | keyof T>,
+    private options: Partial<TOptionsTableData>
+  ) {}
+
+  public create(options?: Partial<TOptionsTableData>) {
+    const opts = {
+      ...defaultOptionsTableData,
+      ...this.options,
+      ...options,
+    };
+
+    const COL_WIDTH = Math.floor(opts.width / this.fields.length) - 5;
+    const colWidths = this.fields.map(() => COL_WIDTH);
+
+    const table = new CliTable3({
+      head: this.fields.map((f) => (typeof f === 'object' ? f[1] : String(f))),
+      style: { compact: true, head: ['cyan'], border: ['gray'], ...opts.style },
+      colWidths,
+    });
+
+    for (const item of this.data) {
+      table.push(
+        this.fields.map((f) => {
+          const fieldString = typeof f === 'object' ? f[0] : f;
+          let strData = String(item[fieldString]) ?? '';
+
+          if (opts.slideStr.includes(fieldString)) {
+            return wrap(strData, COL_WIDTH - 2);
+          }
+
+          return wrap(strData, COL_WIDTH - 2, { hard: true, trim: true });
+        })
+      );
+    }
+
+    if (opts.colorize) return table.toString();
+
+    return resetTextStyle(table.toString());
+  }
+
+  public static isTableData(data: any) {
+    return typeof data?.data === 'object' && data?.isTable;
+  }
+
+  public json() {
+    return serialize(this.data);
+  }
+}
+
 export const printAppTable = <T>(
   list: T[],
   fields: Array<[keyof T, string] | keyof T>,
   slideStr: Array<keyof T> = []
 ) => {
-  const COL_WIDTH = Math.floor(terminalWidth / fields.length) - 5;
-  const colWidths = fields.map(() => COL_WIDTH);
+  const table = new TableData<T>(list, fields, { slideStr });
 
-  const table = new CliTable3({
-    head: fields.map((f) => (typeof f === 'object' ? f[1] : String(f))),
-    style: { compact: true, head: ['cyan'], border: ['gray'] },
-    colWidths,
-  });
-
-  for (const item of list) {
-    table.push(
-      fields.map((f) => {
-        const fieldString = typeof f === 'object' ? f[0] : f;
-        let strData = String(item[fieldString]) ?? '';
-
-        if (slideStr.includes(fieldString)) {
-          return wrap(strData, COL_WIDTH - 2);
-        }
-
-        return wrap(strData, COL_WIDTH - 2, { hard: true, trim: true });
-      })
-    );
-  }
-
-  logger.info(table.toString());
+  logger.info(table);
 };
 
 type TGridRow = { label: string; data: string | any };
@@ -118,6 +164,10 @@ export class GridData<T = any> {
 
     return formatGrid(prints, opts);
   }
+
+  public static isGridData(data: any | undefined) {
+    return typeof data?.data === 'object' && data?.isGrid;
+  }
 }
 
 export const printGrid = <T>(
@@ -184,6 +234,7 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
 
         const factor = 2 / 3;
         const childGridWidth = Math.floor(options.width * factor);
+
         if (typeof rowData === 'object' && !!rowData?.isGrid) {
           rowData = removeEndlines(
             new GridData(rowData.data || {}, rowData.fields || [], rowData.options || {})
@@ -193,6 +244,16 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
 
           isNestedGrid = true;
           rowDataLength = childGridWidth - Math.floor(1 / factor);
+        } else if (typeof rowData === 'object' && !!rowData?.isTable) {
+          rowData = removeEndlines(
+            new TableData(rowData.data || [], rowData.fields || [], rowData.options || {}).create({
+              width: childGridWidth,
+              style: { 'padding-left': 0, 'padding-right': 0, head: [], border: [] },
+            })
+          );
+
+          isNestedGrid = true;
+          rowDataLength = childGridWidth - 20 - Math.floor(1 / factor);
         } else {
           rowData = serialize(rowData);
         }

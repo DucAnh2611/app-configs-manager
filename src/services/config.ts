@@ -226,6 +226,15 @@ export class ConfigService {
     return result;
   }
 
+  public async getSystemConfig() {
+    const config = await this.get({
+      appCode: COMMON_CONFIG.APP_CODE,
+      appNamespace: COMMON_CONFIG.APP_ENV,
+    });
+
+    return ConfigService.safeConfig(config.configs);
+  }
+
   private async bulkUp(dtos: TConfigServiceBulkUp[]) {
     const saveConfigs = await Promise.all(
       dtos.map(async (dto) =>
