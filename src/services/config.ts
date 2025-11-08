@@ -297,8 +297,8 @@ export class ConfigService {
 
   public static safeConfig(config: Record<string, any>) {
     return {
-      ...config,
       ...APP_CONSTANTS.DEFAULT_CONFIGS,
+      ...config,
     };
   }
 
