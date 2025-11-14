@@ -1,7 +1,7 @@
 import { In } from 'typeorm';
 import { IApp, IConfig } from '../db';
 import { EErrorCode, EResponseStatus } from '../enums';
-import { Exception } from '../helpers';
+import { CacheKeyGenerator, Exception } from '../helpers';
 import { AppRepository } from '../repositories';
 import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate } from '../types';
 import { CacheService } from './cache';
@@ -60,9 +60,16 @@ export class AppService {
   }
 
   public async find() {
-    return await this.appRepository.find({
+    const cacheKey = CacheKeyGenerator.appList();
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.appRepository.find({
       select: { id: true, code: true, name: true, createdAt: true, updatedAt: true },
     });
+
+    await this.cacheService.set(cacheKey, result);
+    return result;
   }
 
   public async detail(dto: DtoAppDetail) {
@@ -112,6 +119,7 @@ export class AppService {
       namespace: dto.namespace,
     });
 
+    await this.cacheService.delete(CacheKeyGenerator.appList());
     return saved;
   }
 
@@ -138,6 +146,13 @@ export class AppService {
       }
     );
 
+    if (saved.affected) {
+      await Promise.all([
+        this.cacheService.delete(CacheKeyGenerator.appList()),
+        this.cacheService.delete(CacheKeyGenerator.appDetail(dto.id)),
+      ]);
+    }
+
     return !!saved.affected;
   }
 
@@ -145,6 +160,13 @@ export class AppService {
     const deleted = await this.appRepository.softDelete({
       id: In(dto.ids),
     });
+
+    if (deleted.affected && deleted.affected > 0) {
+      await Promise.all([
+        this.cacheService.delete(CacheKeyGenerator.appList()),
+        ...dto.ids.map(id => this.cacheService.delete(CacheKeyGenerator.appDetail(id))),
+      ]);
+    }
 
     return deleted.affected === dto.ids.length;
   }

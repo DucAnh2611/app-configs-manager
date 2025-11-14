@@ -1,0 +1,40 @@
+import { CACHE_CONSTANTS } from '../constants';
+import { ECacheKey } from '../enums';
+
+export class CacheKeyGenerator {
+  static config(appId: string, namespace: string, ...parts: Array<string | number>): string {
+    return this.custom(ECacheKey.CONFIG, appId, namespace, ...parts);
+  }
+
+  static webhookList(appId: string): string {
+    return this.custom(ECacheKey.WEBHOOK, 'LIST', appId);
+  }
+
+  static webhookDetail(webhookId: string): string {
+    return this.custom(ECacheKey.WEBHOOK, 'DETAIL', webhookId);
+  }
+
+  static appDetail(appId: string): string {
+    return this.custom(ECacheKey.APP, 'DETAIL', appId);
+  }
+
+  static appList(): string {
+    return this.custom(ECacheKey.APP, 'LIST');
+  }
+
+  static apiKey(keyId: string): string {
+    return `${ECacheKey.API_KEY}_${keyId}`;
+  }
+
+  static apiKeyList(appCode: string): string {
+    return `${ECacheKey.API_KEY_LIST}_${appCode}`;
+  }
+
+  static apiKeyValidate(appCode: string, type: string, ...parts: Array<string | number>): string {
+    return this.custom(ECacheKey.API_KEY_VALIDATE, appCode, type, ...parts);
+  }
+
+  static custom(...parts: Array<ECacheKey | string | number>): string {
+    return parts.join(CACHE_CONSTANTS.KEY_SPLIT);
+  }
+}

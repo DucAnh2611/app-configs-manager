@@ -4,3 +4,7 @@ export const APP_CONSTANTS = {
     JWT_SECRET_API_KEY: 'default',
   } as Record<string, any>,
 };
+
+export const CACHE_CONSTANTS = {
+  KEY_SPLIT: ':',
+};
