@@ -1,5 +1,6 @@
 export enum EWebhookTriggerType {
   CHANGE = 'CHANGE',
+  REMOVE = 'REMOVE',
 }
 
 export enum EWebhookTriggerOn {
@@ -17,4 +18,11 @@ export enum EWebhookMethod {
 export enum EWebhookBodyType {
   JSON = 'JSON',
   FORM_DATA = 'formData',
+}
+
+export enum EWebhookHistoryStatus {
+  SUCCESS = 'SUCCESS',
+  IN_QUEUE = 'IN_QUEUE',
+  FAILED = 'FAILED',
+  PROCESSING = 'PROCESSING',
 }

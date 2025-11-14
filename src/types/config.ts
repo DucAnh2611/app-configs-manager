@@ -1,36 +1,31 @@
-import { IConfig } from '../db';
+import { IConfig } from './entity';
 
 export type TConfigDecoded = Omit<IConfig, 'configs'> & {
   configs: Record<string, any>;
 };
 
-export type TConfigServiceHistory = {
+export type TConfigServiceHistory = TConfigUseCache & {
   appId: string;
-  appNamespace: string;
 };
 
-export type TConfigServiceGet = {
-  appId: string;
-  appNamespace: string;
-};
+export type TConfigServiceGet = TConfigUseCache & {};
 
-export type TConfigServiceUp = {
+export type TConfigServiceUp = TConfigUseCache & {
   appId: string;
-  namespace: string;
   configs: Record<string, any>;
 };
 
-export type TConfigServiceToggleUse = {
+export type TConfigServiceToggleUse = TConfigUseCache & {
   appId: string;
   configId: string;
 };
 
-export type TConfigServiceRollback = {
+export type TConfigServiceRollback = TConfigUseCache & {
   appId: string;
   configId: string;
 };
 
-export type TConfigServiceRemove = {
+export type TConfigServiceRemove = TConfigUseCache & {
   appId: string;
   configId: string;
 };
@@ -41,4 +36,9 @@ export type TConfigServiceBulkUp = {
   namespace: string;
   isUse: boolean;
   version: number;
+};
+
+export type TConfigUseCache = {
+  appCode: string;
+  appNamespace: string;
 };

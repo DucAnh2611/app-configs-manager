@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { getController } from '../../../controllers';
+import { ROUTE_PATHS } from '../../../constants';
+import { controllerNames, getController } from '../../../controllers';
 import { EApiKeyType, EValidateDtoType } from '../../../enums';
-import { routeHandler } from '../../../helpers';
+import { createRouter } from '../../../helpers';
 import { ValidateApiKey, ValidateDto } from '../../../middlewares';
 import {
   DtoConfigRemove,
@@ -11,116 +11,165 @@ import {
   TRequestAuth,
 } from '../../../types';
 
-export const ConfigRouter = Router();
+const configPaths = ROUTE_PATHS.api.v1.config;
 
-ConfigRouter.get(
-  '/history',
-  ValidateApiKey(EApiKeyType.CONFIG),
-  routeHandler(
-    async (req: TRequestAuth) => {
+export const ConfigRouter = createRouter([
+  {
+    path: configPaths.history,
+    method: 'get',
+    middlewares: [ValidateApiKey(EApiKeyType.CONFIG)],
+    handler: async (req: TRequestAuth) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
-      const { namespace } = req.appSign;
+      const { namespace, code } = req.appSign;
 
-      const data = await configController.history({ appId, appNamespace: namespace });
+      const data = await configController.history({
+        appId,
+        appNamespace: namespace,
+        appCode: code,
+      });
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.history.name,
+    },
+  },
+  {
+    path: configPaths.get,
+    method: 'get',
+    middlewares: [ValidateApiKey(EApiKeyType.CONFIG)],
+    handler: async (req: TRequestAuth) => {
+      const { configController } = getController();
 
-ConfigRouter.get(
-  '/',
-  ValidateApiKey(EApiKeyType.CONFIG),
-  routeHandler(
-    async (req: TRequestAuth) => {
+      const { namespace, code } = req.appSign;
+
+      const data = await configController.get({ appCode: code, appNamespace: namespace });
+
+      return data;
+    },
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.get.name,
+    },
+  },
+  {
+    path: configPaths.up,
+    method: 'post',
+    middlewares: [
+      ValidateDto([{ dto: DtoConfigUp, type: EValidateDtoType.BODY }]),
+      ValidateApiKey(EApiKeyType.UP_CONFIG),
+    ],
+    handler: async (req: TRequestAuth<DtoConfigUp, {}, {}>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
-      const { namespace } = req.appSign;
+      const { namespace, code } = req.appSign;
 
-      const data = await configController.get({ appId, appNamespace: namespace });
+      const data = await configController.up({
+        ...req.vBody,
+        appId,
+        appNamespace: namespace,
+        appCode: code,
+      });
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.post(
-  '/',
-  ValidateDto([{ dto: DtoConfigUp, type: EValidateDtoType.BODY }]),
-  ValidateApiKey(EApiKeyType.UP_CONFIG),
-  routeHandler(
-    async (req: TRequestAuth) => {
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.up.name,
+    },
+  },
+  {
+    path: configPaths.toggle,
+    method: 'post',
+    middlewares: [
+      ValidateDto([{ dto: DtoConfigToggleUse, type: EValidateDtoType.PARAM }]),
+      ValidateApiKey(EApiKeyType.UP_CONFIG),
+    ],
+    handler: async (req: TRequestAuth<{}, {}, DtoConfigToggleUse>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
-      const { namespace } = req.appSign;
+      const { code, namespace } = req.appSign;
+      const { id: configId } = req.vParam;
 
-      const data = await configController.up({ appId, namespace, ...req.body });
+      const data = await configController.toggleUse({
+        configId,
+        appId,
+        appCode: code,
+        appNamespace: namespace,
+      });
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.post(
-  '/:id/toggle',
-  ValidateDto([{ dto: DtoConfigToggleUse, type: EValidateDtoType.PARAM }]),
-  ValidateApiKey(EApiKeyType.UP_CONFIG),
-  routeHandler(
-    async (req: TRequestAuth) => {
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.toggleUse.name,
+    },
+  },
+  {
+    path: configPaths.rollback,
+    method: 'post',
+    middlewares: [
+      ValidateDto([{ dto: DtoConfigRollback, type: EValidateDtoType.PARAM }]),
+      ValidateApiKey(EApiKeyType.UP_CONFIG),
+    ],
+    handler: async (req: TRequestAuth<{}, {}, DtoConfigRollback>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
-      const { id: configId } = req.params as any as DtoConfigToggleUse;
+      const { code, namespace } = req.appSign;
+      const { id: configId } = req.vParam;
 
-      const data = await configController.toggleUse({ configId, appId });
+      const data = await configController.rollback({
+        configId,
+        appId,
+        appCode: code,
+        appNamespace: namespace,
+      });
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.post(
-  '/:id/rollback',
-  ValidateDto([{ dto: DtoConfigRollback, type: EValidateDtoType.PARAM }]),
-  ValidateApiKey(EApiKeyType.UP_CONFIG),
-  routeHandler(
-    async (req: TRequestAuth) => {
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.rollback.name,
+    },
+  },
+  {
+    path: configPaths.remove,
+    method: 'delete',
+    middlewares: [
+      ValidateDto([{ dto: DtoConfigRemove, type: EValidateDtoType.PARAM }]),
+      ValidateApiKey(EApiKeyType.UP_CONFIG),
+    ],
+    handler: async (req: TRequestAuth<{}, {}, DtoConfigRemove>) => {
       const { configController } = getController();
 
       const { appId } = req.apiKey;
-      const { id: configId } = req.params as any as DtoConfigRollback;
+      const { code, namespace } = req.appSign;
+      const { id: configId } = req.vParam;
 
-      const data = await configController.rollback({ configId, appId });
-
-      return data;
-    },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
-
-ConfigRouter.delete(
-  '/:id',
-  ValidateDto([{ dto: DtoConfigRemove, type: EValidateDtoType.PARAM }]),
-  ValidateApiKey(EApiKeyType.UP_CONFIG),
-  routeHandler(
-    async (req: TRequestAuth) => {
-      const { configController } = getController();
-
-      const { appId } = req.apiKey;
-      const { id: configId } = req.params as any as DtoConfigRemove;
-
-      const data = await configController.remove({ configId, appId });
+      const data = await configController.remove({
+        configId,
+        appId,
+        appCode: code,
+        appNamespace: namespace,
+      });
 
       return data;
     },
-    { requireApiKey: true, requireAppSignature: true }
-  )
-);
+    handlerOptions: {
+      requireApiKey: true,
+      requireAppSignature: true,
+      controller: controllerNames.config.remove.name,
+    },
+  },
+]);

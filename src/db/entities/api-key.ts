@@ -1,25 +1,11 @@
 import { EntitySchema } from 'typeorm';
-import { IApp } from './app';
+import { DB_TABLES_CONSTANTS } from '../../constants';
 import { EApiKeyType } from '../../enums';
-
-export interface IApiKey {
-  id: string;
-  key: string;
-  type: EApiKeyType;
-  publicKey: string | null;
-  description: string | null;
-  appId: string;
-  active: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  revokedAt?: Date | null;
-  deletedAt: null;
-  app?: IApp;
-}
+import { IApiKey } from '../../types';
 
 export const ApiKeyEntity = new EntitySchema<IApiKey>({
-  name: 'ApiKey',
-  tableName: 'api_key',
+  name: DB_TABLES_CONSTANTS.API_KEY.NAME,
+  tableName: DB_TABLES_CONSTANTS.API_KEY.TABLE_NAME,
   columns: {
     id: {
       type: 'uuid',
@@ -76,7 +62,7 @@ export const ApiKeyEntity = new EntitySchema<IApiKey>({
   relations: {
     app: {
       type: 'many-to-one',
-      target: 'App',
+      target: DB_TABLES_CONSTANTS.APP.NAME,
       joinColumn: { name: 'appId' },
       onDelete: 'CASCADE',
     },

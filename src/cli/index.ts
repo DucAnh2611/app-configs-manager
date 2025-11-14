@@ -1,18 +1,20 @@
 #!/usr/bin/env ts-node
-import 'reflect-metadata';
 import { Command } from 'commander';
-import { AppDataSource } from '../db';
-import { registerAppCommands } from './app';
-import chalk from 'chalk';
-import { registerApiKeyCommands } from './api-key';
-import { connectRedis } from '../libs';
+import 'reflect-metadata';
 import { initControllers } from '../controllers';
+import { AppDataSource } from '../db';
+import { connectRedis, logger } from '../libs';
+import { initServices } from '../services';
+import { registerApiKeyCommands } from './api-key';
+import { registerAppCommands } from './app';
 import { registerConfigCommands } from './config';
 
 const InitCli = async () => {
   const program = new Command();
 
   await connectRedis();
+
+  initServices();
   initControllers();
 
   program.name('app_configs').description('CLI to manage Apps and API Keys').version('1.0.0');
@@ -27,7 +29,7 @@ const InitCli = async () => {
       await AppDataSource.destroy();
     })
     .catch((err) => {
-      console.error(chalk.red('❌ Error:'), err);
+      logger.error(err);
       process.exit(1);
     });
 };

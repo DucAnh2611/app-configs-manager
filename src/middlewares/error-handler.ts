@@ -1,29 +1,33 @@
 import { NextFunction, Request, Response } from 'express';
 import { EErrorCode, EResponseStatus } from '../enums';
-import { Exception, responseHandler } from '../helpers';
-import { TResponseValidation } from '../types';
+import { Exception, getAnalysticEndData, responseHandler } from '../helpers';
+import { logger } from '../libs';
+import { TRequestBase, TResponseValidation } from '../types';
 
 export const ErrorHandler = () => {
   return (
     error: Exception | Error | TResponseValidation[],
-    _req: Request,
+    req: Request,
     res: Response,
     _next: NextFunction
   ) => {
+    let response: Exception = new Exception(
+      EResponseStatus.InternalServerError,
+      EErrorCode.INTERNAL_SERVER
+    );
+
     if (error instanceof Exception) {
-      responseHandler(res, error);
-      return;
+      response = error;
     }
 
     if (error instanceof Error) {
-      responseHandler(res, new Exception(EResponseStatus.BadGateway, error));
-      return;
+      response = new Exception(EResponseStatus.BadGateway, error);
     }
 
-    responseHandler(
-      res,
-      new Exception(EResponseStatus.InternalServerError, EErrorCode.INTERNAL_SERVER)
-    );
+    logger.info(getAnalysticEndData(req as any as TRequestBase, response), 'RESPONSE', 'FAILED');
+
+    responseHandler(res, response);
+
     return;
   };
 };

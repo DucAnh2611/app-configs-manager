@@ -1,22 +1,10 @@
 import { EntitySchema } from 'typeorm';
-import { IApiKey } from './api-key';
-import { IConfig } from './config';
-
-export interface IApp {
-  id: string;
-  code: string;
-  name: string;
-  configs: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt?: Date | null;
-  apiKeys?: IApiKey[];
-  vConfigs?: IConfig[];
-}
+import { DB_TABLES_CONSTANTS } from '../../constants';
+import { IApp } from '../../types';
 
 export const AppEntity = new EntitySchema<IApp>({
-  name: 'App',
-  tableName: 'apps',
+  name: DB_TABLES_CONSTANTS.APP.NAME,
+  tableName: DB_TABLES_CONSTANTS.APP.TABLE_NAME,
   columns: {
     id: {
       type: 'uuid',
@@ -52,13 +40,13 @@ export const AppEntity = new EntitySchema<IApp>({
   relations: {
     apiKeys: {
       type: 'one-to-many',
-      target: 'ApiKey',
+      target: DB_TABLES_CONSTANTS.API_KEY.NAME,
       inverseSide: 'app',
       cascade: true,
     },
     vConfigs: {
       type: 'one-to-many',
-      target: 'Config',
+      target: DB_TABLES_CONSTANTS.CONFIG.NAME,
       inverseSide: 'app',
       cascade: true,
     },

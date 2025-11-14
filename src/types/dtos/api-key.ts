@@ -15,17 +15,25 @@ export class DtoApiKeyValidate {
   apiKey: string;
 
   @IsNotEmpty()
-  @IsEnum(EApiKeyType)
-  type: EApiKeyType;
+  @IsString()
+  namespace: string;
 
   @IsNotEmpty()
   @IsString()
-  appCode: string;
+  code: string;
+
+  @IsOptional()
+  @IsString()
+  publicKey: string;
+
+  @IsNotEmpty()
+  @IsEnum(EApiKeyType)
+  type: EApiKeyType;
 }
 
 export class DtoApiKeyToggle {
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   code: string;
 
   @IsNotEmpty()
@@ -35,7 +43,7 @@ export class DtoApiKeyToggle {
 
 export class DtoApiKeyGenerate {
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   code: string;
 
   @IsNotEmpty()

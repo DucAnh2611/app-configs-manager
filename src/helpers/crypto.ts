@@ -39,7 +39,11 @@ function normalizeKey(secretKey: string) {
   return createHash('sha256').update(secretKey).digest();
 }
 
-export function encrypt(jsonData: Record<string, any>, secretKey: string, bytes: number) {
+export function encrypt(
+  jsonData: Record<string, any> | string | number,
+  secretKey: string,
+  bytes: number
+) {
   const iv = randomBytes(bytes);
   const key = normalizeKey(secretKey);
   const cipher = createCipheriv('aes-256-gcm', key, iv);

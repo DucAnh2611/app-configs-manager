@@ -3,15 +3,17 @@ import { validate } from 'class-validator';
 import { NextFunction, Request, Response } from 'express';
 import { EResponseStatus, EValidateDtoType } from '../enums';
 import { Exception, middlewareHandler } from '../helpers';
-import { TResponseValidation } from '../types';
+import { TRequestBase, TRequestValidatedDto, TResponseValidation } from '../types';
 
 export const ValidateDto = (sources: Array<{ dto: any; type: EValidateDtoType }> = []) => {
-  return middlewareHandler(async (req: Request, res: Response, next: NextFunction) => {
+  return middlewareHandler(async (req: TRequestBase, res: Response, next: NextFunction) => {
+    req.dtos = req.dtos || [];
+
     for (const source of sources) {
+      req.dtos.push({ type: source.type, dto: source.dto.name });
+
       await validateEachSource(source.dto, source.type, req);
     }
-
-    (req as any).isValidateDto = true;
 
     next();
   });
@@ -32,5 +34,16 @@ const validateEachSource = async (dtoClass: any, sourceType: EValidateDtoType, r
     throw new Exception(EResponseStatus.BadRequest, formatted);
   }
 
-  Object.assign(req[sourceType], dtoInstance);
+  const mapFields: Record<
+    EValidateDtoType,
+    keyof Pick<TRequestValidatedDto<any, any, any>, 'vBody' | 'vParam' | 'vQuery'>
+  > = {
+    [EValidateDtoType.BODY]: 'vBody',
+    [EValidateDtoType.QUERY]: 'vQuery',
+    [EValidateDtoType.PARAM]: 'vParam',
+  };
+
+  if (!mapFields[sourceType]) return;
+
+  (req as Partial<TRequestValidatedDto<any, any, any>>)[mapFields[sourceType]] = dtoInstance;
 };
