@@ -7,15 +7,19 @@ export class CacheKeyGenerator {
   }
 
   static webhookList(appId: string): string {
-    return `${ECacheKey.WEBHOOK}_LIST_${appId}`;
+    return this.custom(ECacheKey.WEBHOOK, 'LIST', appId);
   }
 
   static webhookDetail(webhookId: string): string {
-    return `${ECacheKey.WEBHOOK}_DETAIL_${webhookId}`;
+    return this.custom(ECacheKey.WEBHOOK, 'DETAIL', webhookId);
   }
 
   static appDetail(appId: string): string {
-    return `${ECacheKey.APP}_DETAIL_${appId}`;
+    return this.custom(ECacheKey.APP, 'DETAIL', appId);
+  }
+
+  static appList(): string {
+    return this.custom(ECacheKey.APP, 'LIST');
   }
 
   static apiKey(keyId: string): string {
