@@ -18,12 +18,15 @@ import {
 } from '../types';
 import { ConfigService } from './config';
 import { WebhookHistoryService } from './webhook-history';
+import { CacheService } from './cache';
+import { CacheKeyGenerator } from '../helpers';
 
 export class WebhookService {
   constructor(
     private readonly webhookRepository: WebhookRepository,
     private readonly configRepository: ConfigRepository,
-    private readonly webhookHistoryService: WebhookHistoryService
+    private readonly webhookHistoryService: WebhookHistoryService,
+    private readonly cacheService: CacheService
   ) {}
 
   public async register(dto: TWebhookServiceRegister) {
@@ -54,6 +57,11 @@ export class WebhookService {
       isActive: false,
     });
 
+    await Promise.all([
+      this.cacheService.delete(CacheKeyGenerator.webhookList(dto.appId)),
+      this.cacheService.delete(CacheKeyGenerator.webhookDetail(webhook.id)),
+    ]);
+
     return webhook;
   }
 
@@ -81,10 +89,19 @@ export class WebhookService {
       }
     );
 
+    await Promise.all([
+      this.cacheService.delete(CacheKeyGenerator.webhookList(dto.appId)),
+      this.cacheService.delete(CacheKeyGenerator.webhookDetail(dto.id)),
+    ]);
+
     return !!updated.affected;
   }
 
   public async list(dto: TWebhookServiceList) {
+    const cacheKey = CacheKeyGenerator.webhookList(dto.appId);
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
     const webhooks = await this.webhookRepository.find({
       where: { appId: dto.appId },
       select: {
@@ -103,6 +120,8 @@ export class WebhookService {
       },
     });
 
+await this.cacheService.set(cacheKey, webhooks, 300);
+
     return webhooks;
   }
 
@@ -120,6 +139,11 @@ export class WebhookService {
       { isActive: !webhook.isActive }
     );
 
+await Promise.all([
+      this.cacheService.delete(CacheKeyGenerator.webhookList(dto.appId)),
+      this.cacheService.delete(CacheKeyGenerator.webhookDetail(dto.id)),
+    ]);
+
     return !!updated.affected;
   }
 
@@ -134,10 +158,20 @@ export class WebhookService {
 
     await this.webhookRepository.softDelete({ id: dto.id });
 
+  
+    await Promise.all([
+      this.cacheService.delete(CacheKeyGenerator.webhookList(dto.appId)),
+      this.cacheService.delete(CacheKeyGenerator.webhookDetail(dto.id)),
+    ]);
+
     return true;
   }
 
   public async get(dto: TWebhookServiceGet) {
+    const cacheKey = CacheKeyGenerator.webhookDetail(dto.id);
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
     const exist = await this.webhookRepository.findOneBy({ id: dto.id, appId: dto.appId });
     if (!exist) {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.WEBHOOK_NOT_EXIST);
@@ -145,10 +179,14 @@ export class WebhookService {
 
     const { authKey, ...webhookData } = exist;
 
-    return {
+    const result = {
       ...webhookData,
       authKey: authKey ? await this.decryptAuthKey(authKey, dto.appCode, dto.appNamespace) : null,
     };
+    const { authKey: _, ...cachedData } = result;
+    await this.cacheService.set(cacheKey, cachedData, 300);
+
+    return result;
   }
 
   public async getById(id: string) {
