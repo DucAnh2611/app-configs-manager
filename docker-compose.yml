@@ -10,7 +10,9 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - .env.docker
+      - .env
+    environment:
+      DOCKER: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,7 +32,7 @@ services:
     container_name: db
     image: postgres:16-alpine
     env_file:
-      - .env.docker
+      - .env
     environment:
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}

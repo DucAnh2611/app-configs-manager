@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { DATABASE_CONFIG } from '../configs';
+import { COMMON_CONFIG, DATABASE_CONFIG } from '../configs';
 import {
   ApiKeyEntity,
   AppEntity,
@@ -10,7 +10,7 @@ import {
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  host: DATABASE_CONFIG.host,
+  host: COMMON_CONFIG.DOCKER ? 'postgres' : DATABASE_CONFIG.host,
   port: DATABASE_CONFIG.port,
   username: DATABASE_CONFIG.username,
   password: DATABASE_CONFIG.password,

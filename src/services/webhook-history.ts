@@ -25,6 +25,11 @@ import { ConfigService } from './config';
 import { QueueService } from './queue';
 
 export class WebhookHistoryService {
+  private readonly CLEAN_STATUES = [
+    EWebhookHistoryStatus.PROCESSING,
+    EWebhookHistoryStatus.IN_QUEUE,
+  ];
+
   constructor(
     private readonly webhookHistoryRepository: WebhookHistoryRepository,
     private readonly configRepository: ConfigRepository,
@@ -226,7 +231,7 @@ export class WebhookHistoryService {
         logs: () => `COALESCE(logs, '[]'::jsonb) || '[${JSON.stringify(newLog)}]'::jsonb`,
       })
       .where('id IN (:...ids)', { ids })
-      .andWhere('status = :status', { status: EWebhookHistoryStatus.PROCESSING })
+      .andWhere('status IN (:...status)', { status: this.CLEAN_STATUES })
       .execute();
   }
 
@@ -262,7 +267,7 @@ export class WebhookHistoryService {
 
     const cleanList = await this.webhookHistoryRepository.find({
       where: {
-        status: In([EWebhookHistoryStatus.IN_QUEUE, EWebhookHistoryStatus.PROCESSING]),
+        status: In(this.CLEAN_STATUES),
         updatedAt: LessThan(dayjs().subtract(time, unit).toDate()),
       },
     });

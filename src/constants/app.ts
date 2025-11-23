@@ -11,7 +11,3 @@ export const APP_CONSTANTS = {
     RATE_LIMIT_REQUEST: 10,
   },
 };
-
-export const CACHE_CONSTANTS = {
-  KEY_SPLIT: ':',
-};

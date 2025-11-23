@@ -2,7 +2,14 @@ import { In, Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
 import { EErrorCode, EResponseStatus, EWebhookTriggerOn, EWebhookTriggerType } from '../enums';
-import { CacheKeyGenerator, decrypt, encrypt, Exception, excludeFields } from '../helpers';
+import {
+  CacheKeyGenerator,
+  decrypt,
+  deepCompare,
+  encrypt,
+  Exception,
+  excludeFields,
+} from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
   IApp,
@@ -74,6 +81,9 @@ export class ConfigService {
   }
 
   public async up(dto: TConfigServiceUp) {
+    const isEqual = await this.equalCheck(dto.appCode, dto.appNamespace, dto.configs);
+    if (isEqual) throw new Exception(EResponseStatus.BadRequest, EErrorCode.CONFIG_HAVE_NO_CHANGES);
+
     const newVersion = await this.getNewVersion(dto.appId, dto.appNamespace);
 
     await this.unusePreviousVersion(dto.appId, dto.appNamespace);
@@ -240,7 +250,7 @@ export class ConfigService {
       dtos.map(async (dto) =>
         this.configRepository.create({
           appId: dto.appId,
-          configs: await ConfigService.encryptConfig(ConfigService.safeConfig(dto.configs)),
+          configs: ConfigService.encryptConfig(ConfigService.safeConfig(dto.configs)),
           isUse: dto.isUse,
           namespace: dto.namespace,
           version: dto.version,
@@ -300,6 +310,16 @@ export class ConfigService {
       ...APP_CONSTANTS.DEFAULT_CONFIGS,
       ...config,
     };
+  }
+
+  private async equalCheck(appCode: string, appNamespace: string, configs: Record<string, any>) {
+    const currentConfig = await this.configRepository.findOne({
+      where: { app: { code: appCode }, namespace: appNamespace, isUse: true },
+    });
+
+    if (!currentConfig) return true;
+
+    return deepCompare(this.decodeConfig(currentConfig).configs, ConfigService.safeConfig(configs));
   }
 
   private async checkNonActive(appId: string, namespace: string, excludeIds: string[]) {

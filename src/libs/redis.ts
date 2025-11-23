@@ -1,5 +1,5 @@
 import IORedis from 'ioredis';
-import { REDIS_CONFIG } from '../configs';
+import { COMMON_CONFIG, REDIS_CONFIG } from '../configs';
 import { logger } from './logger';
 
 export type Redis = IORedis;
@@ -10,7 +10,7 @@ export const connectRedis = async () => {
   if (!!client) return client;
 
   client = new IORedis({
-    host: REDIS_CONFIG.HOST,
+    host: COMMON_CONFIG.DOCKER ? 'redis' : REDIS_CONFIG.HOST,
     port: Number(REDIS_CONFIG.PORT),
     maxRetriesPerRequest: null,
   });
