@@ -1,7 +1,7 @@
 export const APP_CONSTANTS = {
   DEFAULT_CONFIGS: {
     PUBLIC_KEY_LENGTH: 64,
-    JWT_SECRET_API_KEY: 'default',
+    JWT_SECRET_API_KEY: 'current_secret',
     WEBHOOK_HISTORY_CLEAN_UP_PERIOD: '1h',
     WEBHOOK_AUTH_HEADER_NAME: 'Authorization',
     WEBHOOK_AUTH_HEADER_FORMAT: 'Apikey {apikey}',
@@ -9,5 +9,8 @@ export const APP_CONSTANTS = {
     WEBHOOK_AUTHKEY_ENCRYPT_SECRET_KEY: 'CFG_KEY_WEBHOOK_AUTHKEY',
     RATE_LIMIT_DURATION: 1,
     RATE_LIMIT_REQUEST: 10,
+    JWT_SECRETS: {
+      '1': 'default_secret',
+    }
   },
 };

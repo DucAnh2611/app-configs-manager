@@ -7,6 +7,7 @@ export type TJwtApiKeyPayload = {
   type: EApiKeyType;
   key: string;
   appId: string;
+  version?: number;
 };
 
 export type TRequestAnalystic = Request & {

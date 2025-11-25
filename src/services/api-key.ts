@@ -26,6 +26,16 @@ export class ApiKeyService {
     private readonly cacheService: CacheService
   ) {}
 
+  private getLatestSecretVersion(config: any): number {
+    const secrets = config.JWT_SECRETS || { '1': config.JWT_SECRET_API_KEY };
+    return Math.max(...Object.keys(secrets).map((v) => parseInt(v)));
+  }
+
+  private getSecretByVersion(config: any, version: number): string | null {
+    const secrets = config.JWT_SECRETS || { '1': config.JWT_SECRET_API_KEY };
+    return secrets[version.toString()] || null;
+  }
+
   public async validate(dto: TApiKeyServiceCheck) {
     const cacheKey = CacheKeyGenerator.apiKeyValidate(
       dto.code,
@@ -125,7 +135,15 @@ export class ApiKeyService {
       appNamespace: dto.namespace,
     });
 
-    const { JWT_SECRET_API_KEY, PUBLIC_KEY_LENGTH } = config.configs;
+    const { JWT_SECRETS, JWT_SECRET_API_KEY, PUBLIC_KEY_LENGTH } = config.configs;
+    const secrets = JWT_SECRETS || { '1': JWT_SECRET_API_KEY };
+    const latestVersion = this.getLatestSecretVersion(config.configs);
+    const currentSecret = this.getSecretByVersion(config.configs, latestVersion);
+
+    if (!currentSecret) {
+      throw new Exception(EResponseStatus.InternalServerError, EErrorCode.INTERNAL_SERVER);
+    }
+
 
     if (dto.type === EApiKeyType.THIRD_PARTY && !PUBLIC_KEY_LENGTH) {
       throw new Exception(
@@ -152,8 +170,9 @@ export class ApiKeyService {
           key: key,
           type: dto.type,
           appId: app.id,
+          version: latestVersion,
         },
-        JWT_SECRET_API_KEY
+        currentSecret,
       ),
     };
   }
@@ -198,7 +217,14 @@ export class ApiKeyService {
       appNamespace: dto.namespace,
     });
 
-    const { JWT_SECRET_API_KEY } = config.configs;
+    const { JWT_SECRETS, JWT_SECRET_API_KEY } = config.configs;
+    const secrets = JWT_SECRETS || { '1': JWT_SECRET_API_KEY };
+    const latestVersion = this.getLatestSecretVersion(config.configs);
+    const currentSecret = this.getSecretByVersion(config.configs, latestVersion);
+
+    if (!currentSecret) {
+      throw new Exception(EResponseStatus.InternalServerError, EErrorCode.INTERNAL_SERVER);
+    }
 
     await this.apiKeyRepository.update(
       { id: dto.id },
@@ -219,8 +245,9 @@ export class ApiKeyService {
           key: key,
           type: apiKey.type,
           appId: app.id,
+          version: latestVersion,
         },
-        JWT_SECRET_API_KEY
+        currentSecret
       ),
     };
   }
@@ -298,8 +325,18 @@ export class ApiKeyService {
       appNamespace: namespace,
     });
 
-    const { JWT_SECRET_API_KEY } = config.configs;
-
-    return verifyJwt<TJwtApiKeyPayload>(token, JWT_SECRET_API_KEY);
+    const { JWT_SECRETS, JWT_SECRET_API_KEY } = config.configs;
+    const secrets = JWT_SECRETS || { '1': JWT_SECRET_API_KEY };
+    for (const [version, secret] of Object.entries(secrets)) {
+      try {
+        const payload = verifyJwt<TJwtApiKeyPayload>(token, secret as string);
+        if (payload) {
+          return { ...payload, version: payload.version || parseInt(version) };
+        }
+      } catch {
+        continue;
+      }
+    }
+    return null;
   }
 }

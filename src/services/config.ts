@@ -81,6 +81,8 @@ export class ConfigService {
   }
 
   public async up(dto: TConfigServiceUp) {
+    this.validateJwtSecrets(dto.configs);
+
     const isEqual = await this.equalCheck(dto.appCode, dto.appNamespace, dto.configs);
     if (isEqual) throw new Exception(EResponseStatus.BadRequest, EErrorCode.CONFIG_HAVE_NO_CHANGES);
 
@@ -310,6 +312,21 @@ export class ConfigService {
       ...APP_CONSTANTS.DEFAULT_CONFIGS,
       ...config,
     };
+  }
+
+  private validateJwtSecrets(configs: Record<string, any>) {
+    if (configs.JWT_SECRETS) {
+      const secrets = configs.JWT_SECRETS;
+      if (typeof secrets !== 'object' || secrets === null) {
+        throw new Exception(EResponseStatus.BadRequest, EErrorCode.INTERNAL_SERVER);
+      }
+
+      for (const [version, secret] of Object.entries(secrets)) {
+        if (isNaN(parseInt(version)) || typeof secret !== 'string' || !secret.trim()) {
+          throw new Exception(EResponseStatus.BadRequest, EErrorCode.INTERNAL_SERVER);
+        }
+      }
+    }
   }
 
   private async equalCheck(appCode: string, appNamespace: string, configs: Record<string, any>) {
