@@ -1,6 +1,6 @@
 import { NextFunction, Response } from 'express';
 import { EApiKeyType, EErrorCode, EResponseStatus } from '../enums';
-import { Exception, middlewareHandler } from '../helpers';
+import { Exception, middlewareHandler, valueOrDefault } from '../helpers';
 import { getServices } from '../services';
 import { TRequestBase } from '../types';
 
@@ -9,36 +9,21 @@ export const ValidateApiKey = (type: EApiKeyType) => {
     const { apiKeyService } = getServices();
     req.apiKeyType = type;
 
-    const authToken: string = (req.headers.authorization || '') as string;
+    const authToken: string = valueOrDefault<string>(req.headers.authorization, '');
 
-    const [_apikeyType, apiKeyHeader] = authToken.split(' ');
+    const [_apikeyType, publicKeyHeader] = authToken.split(' ');
 
-    if (!apiKeyHeader) {
-      throw new Exception(EResponseStatus.Unauthorized, EErrorCode.MISSING_HEADER_AUTHORIZATION);
+    if (!publicKeyHeader) {
+      throw new Exception(EResponseStatus.Unauthorized, EErrorCode.APIKEY_UNAUTHORIZATION);
     }
 
     if (!req.appSign) {
       throw new Exception(EResponseStatus.Unauthorized, EErrorCode.MISSING_REQUEST_APP_SIGNATURE);
     }
 
-    const { code: appCode, namespace } = req.appSign;
-
-    const apikeyPayload = await apiKeyService.extractPayload(apiKeyHeader, appCode, namespace);
-
-    if (!apikeyPayload) {
-      throw new Exception(EResponseStatus.Forbidden, EErrorCode.APIKEY_PAYLOAD_EXTRACT_FAILED);
-    }
-
-    if (apikeyPayload.type !== type) {
-      throw new Exception(EResponseStatus.Forbidden, EErrorCode.APIKEY_PAYLOAD_TYPE_DISMATCH);
-    }
-
-    const { appId, key } = apikeyPayload;
-
-    const valid = await apiKeyService.checkKeyType({
+    const valid = await apiKeyService.validate({
+      publicKey: publicKeyHeader,
       type,
-      key: key,
-      appCode: appCode,
     });
 
     if (!valid) {
@@ -47,8 +32,7 @@ export const ValidateApiKey = (type: EApiKeyType) => {
 
     req.apiKey = {
       type,
-      key: key,
-      appId: appId,
+      publicKey: publicKeyHeader,
     };
 
     next();

@@ -19,4 +19,10 @@ export const DB_TABLES_CONSTANTS = {
     NAME: 'WebhookHistory',
     TABLE_NAME: 'webhook_histories',
   },
+  KEY: {
+    NAME: 'Key',
+    TABLE_NAME: 'keys',
+    HASH_MAX_BYTES: 128,
+    TYPE_LENGTH: 50,
+  },
 };

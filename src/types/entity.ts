@@ -1,5 +1,6 @@
 import {
   EApiKeyType,
+  EKeyStatus,
   EWebhookBodyType,
   EWebhookHistoryStatus,
   EWebhookMethod,
@@ -10,7 +11,7 @@ import { TWebhookHistoryLog, TWebhookSnapshot } from './webhook';
 
 export interface IApiKey {
   id: string;
-  key: string;
+  keyId: string;
   type: EApiKeyType;
   publicKey: string | null;
   description: string | null;
@@ -21,6 +22,7 @@ export interface IApiKey {
   revokedAt?: Date | null;
   deletedAt: null;
   app?: IApp;
+  key?: IKey;
 }
 
 export interface IApp {
@@ -76,4 +78,18 @@ export interface IWebhook {
   deletedAt?: Date | null;
   app?: IApp;
   hitories?: IWebhookHistory[];
+}
+
+export interface IKey {
+  id: string;
+  type: string;
+  hashed: string;
+  hashBytes: number;
+  version: number;
+  status: EKeyStatus;
+  expireAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+  apiKey?: IApiKey;
 }

@@ -21,8 +21,8 @@ export const ApiKeyEntity = new EntitySchema<IApiKey>({
       default: EApiKeyType.THIRD_PARTY,
       enum: EApiKeyType,
     },
-    key: {
-      type: 'text',
+    keyId: {
+      type: 'uuid',
       nullable: false,
     },
     publicKey: {
@@ -64,6 +64,12 @@ export const ApiKeyEntity = new EntitySchema<IApiKey>({
       type: 'many-to-one',
       target: DB_TABLES_CONSTANTS.APP.NAME,
       joinColumn: { name: 'appId' },
+      onDelete: 'CASCADE',
+    },
+    key: {
+      type: 'many-to-one',
+      target: DB_TABLES_CONSTANTS.KEY.NAME,
+      joinColumn: { name: 'keyId' },
       onDelete: 'CASCADE',
     },
   },

@@ -4,6 +4,7 @@ import {
   ApiKeyEntity,
   AppEntity,
   ConfigEntity,
+  KeyEntity,
   WebhookEntity,
   WebhookHistoryEntity,
 } from './entities';
@@ -17,7 +18,7 @@ export const AppDataSource = new DataSource({
   database: DATABASE_CONFIG.database,
   synchronize: false,
   migrations: ['**/migrations/*.js'],
-  entities: [AppEntity, ApiKeyEntity, ConfigEntity, WebhookEntity, WebhookHistoryEntity],
+  entities: [AppEntity, ApiKeyEntity, ConfigEntity, WebhookEntity, WebhookHistoryEntity, KeyEntity],
   applicationName: 'app_config_node',
   poolSize: 5,
 });

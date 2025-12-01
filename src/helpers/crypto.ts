@@ -13,10 +13,13 @@ export const generateBytes = (length: number, prefix?: string) => {
   return `${prefix ? `${prefix}_` : ''}${randomBytes(length).toString(encodingStyle)}`;
 };
 
-export const hash = (data: string, length: number, salt?: string) => {
+export const hash = (
+  data: string,
+  { salt, length }: Partial<{ length: number; salt: string }> = {}
+) => {
   let saltFinal = salt;
   if (!saltFinal) {
-    saltFinal = randomBytes(length).toString(encodingStyle);
+    saltFinal = generateBytes(length ?? 32);
   }
 
   const hashed = scryptSync(data, saltFinal, 64).toString(encodingStyle);

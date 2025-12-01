@@ -18,7 +18,7 @@ export const WebhookHistoryRouter = createRouter([
     handler: async (req: TRequestAuth<{}, DtoWebhookHistoryList, {}>) => {
       const { webhookHistoryController } = getController();
 
-      const { appId } = req.apiKey;
+      const { appId } = req.appSign;
 
       const data = await webhookHistoryController.list({
         ...REQUEST_DEFAULT_FULLSEARCH,

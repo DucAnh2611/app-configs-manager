@@ -1,10 +1,9 @@
-import { IsNull, Like } from 'typeorm';
-import { EApiKeyType, EErrorCode, EResponseStatus } from '../enums';
-import { Exception, generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
+import { Like } from 'typeorm';
+import { EErrorCode, EResponseStatus } from '../enums';
+import { bindStringFormat, Exception, generateBytes, slug } from '../helpers';
 import { CacheKeyGenerator } from '../helpers/cache';
 import { ApiKeyRepository } from '../repositories';
 import {
-  DtoApiKeyCheckKeyType,
   DtoApiKeyGenerate,
   DtoApiKeyList,
   DtoApiKeyReset,
@@ -12,74 +11,31 @@ import {
   DtoApiKeyUpdate,
   IApiKey,
   TApiKeyServiceCheck,
-  TJwtApiKeyPayload,
 } from '../types';
 import { AppService } from './app';
 import { CacheService } from './cache';
-import { ConfigService } from './config';
+import { KeyService } from './key';
 
 export class ApiKeyService {
   constructor(
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly appService: AppService,
-    private readonly configService: ConfigService,
+    private readonly keyService: KeyService,
     private readonly cacheService: CacheService
   ) {}
 
   public async validate(dto: TApiKeyServiceCheck) {
-    const cacheKey = CacheKeyGenerator.apiKeyValidate(
-      dto.code,
-      dto.type,
-      dto.namespace,
-      dto.apiKey
-    );
-    const cached = await this.cacheService.get<boolean>(cacheKey);
-    if (cached !== null) {
-      return cached;
-    }
-
-    const apikeyPayload = await this.extractPayload(dto.apiKey, dto.code, dto.namespace);
-
-    if (!apikeyPayload) {
-      throw new Exception(EResponseStatus.Forbidden, EErrorCode.APIKEY_PAYLOAD_EXTRACT_FAILED);
-    }
-
-    const apiKeys = await this.apiKeyRepository.find({
+    const apiKey = await this.apiKeyRepository.findOne({
       where: {
-        app: {
-          code: dto.code,
-        },
+        publicKey: dto.publicKey,
         type: dto.type,
-        publicKey: dto.type === EApiKeyType.THIRD_PARTY ? dto.publicKey : IsNull(),
         active: true,
-      },
-      select: {
-        id: false,
-        appId: false,
-        key: true,
-        type: false,
-        publicKey: false,
-        description: false,
-        active: false,
-        createdAt: false,
-        updatedAt: false,
-        revokedAt: false,
       },
     });
 
-    const { key } = apikeyPayload;
+    if (!apiKey) throw new Exception(EResponseStatus.NotFound, EErrorCode.KEY_NOT_EXIST);
 
-    let validateResult = false;
-
-    for (const apiKey of apiKeys) {
-      if (verify(key, apiKey.key)) {
-        validateResult = true;
-        break;
-      }
-    }
-
-    await this.cacheService.set(cacheKey, validateResult, 300);
-    return validateResult;
+    return this.keyService.verify(apiKey.keyId);
   }
 
   public async toggle(dto: DtoApiKeyToggle) {
@@ -107,55 +63,40 @@ export class ApiKeyService {
     );
 
     await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
-    await this.cacheService.delete(CacheKeyGenerator.apiKeyValidate(dto.code, apiKey.type));
 
     return { ...dto, type: apiKey.type, active: updateApiKey.active };
   }
 
-  public async generate(dto: DtoApiKeyGenerate): Promise<IApiKey & { formattedKey: string }> {
+  public async generate(dto: DtoApiKeyGenerate) {
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
-    const key = generateBytes(Number(dto.length));
-
-    const config = await this.configService.get({
-      appCode: app.code,
-      appNamespace: dto.namespace,
+    const { keyId } = await this.keyService.getRotateKey({
+      type: this.keyTypeString(dto.code, dto.namespace, dto.type),
+      bytes: dto.length,
     });
 
-    const { JWT_SECRET_API_KEY, PUBLIC_KEY_LENGTH } = config.configs;
-
-    if (dto.type === EApiKeyType.THIRD_PARTY && !PUBLIC_KEY_LENGTH) {
+    if (!dto.publicKeyLength) {
       throw new Exception(
         EResponseStatus.BadRequest,
         EErrorCode.PUBLIC_KEY_LENGTH_IS_NOT_CONFIGURATED
       );
     }
 
-    const saved = await this.apiKeyRepository.save({
+    const apiKeyInstance = this.apiKeyRepository.create({
       appId: app.id,
-      key: hash(key, Number(dto.length)),
-      publicKey:
-        dto.type === EApiKeyType.THIRD_PARTY ? generateBytes(Number(PUBLIC_KEY_LENGTH)) : null,
+      keyId,
+      publicKey: generateBytes(dto.publicKeyLength),
       description: dto.description,
       type: dto.type,
       active: true,
     });
 
-    return {
-      ...saved,
-      formattedKey: signJwt<TJwtApiKeyPayload>(
-        {
-          appCode: app.code,
-          key: key,
-          type: dto.type,
-          appId: app.id,
-        },
-        JWT_SECRET_API_KEY
-      ),
-    };
+    const saved = await this.apiKeyRepository.save(apiKeyInstance);
+
+    return saved;
   }
 
   public async list(dto: DtoApiKeyList) {
@@ -191,38 +132,23 @@ export class ApiKeyService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
-    const key = generateBytes(Number(dto.length));
-
-    const config = await this.configService.get({
-      appCode: app.code,
-      appNamespace: dto.namespace,
+    const { keyId } = await this.keyService.generate({
+      type: this.keyTypeString(dto.code, dto.namespace, apiKey.type),
+      useRotate: true,
+      bytes: dto.length,
     });
-
-    const { JWT_SECRET_API_KEY } = config.configs;
 
     await this.apiKeyRepository.update(
       { id: dto.id },
       {
-        key: hash(key, Number(dto.length)),
+        keyId,
         active: true,
       }
     );
 
     await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
-    await this.cacheService.delete(CacheKeyGenerator.apiKeyValidate(dto.code, apiKey.type));
 
-    return {
-      ...apiKey,
-      formattedKey: signJwt<TJwtApiKeyPayload>(
-        {
-          appCode: app.code,
-          key: key,
-          type: apiKey.type,
-          appId: app.id,
-        },
-        JWT_SECRET_API_KEY
-      ),
-    };
+    return { ...apiKey, keyId };
   }
 
   public async update(dto: DtoApiKeyUpdate) {
@@ -240,7 +166,6 @@ export class ApiKeyService {
       await this.apiKeyRepository.softDelete({ id: dto.id });
 
       await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
-      await this.cacheService.delete(CacheKeyGenerator.apiKeyValidate(dto.code, apiKey.type));
       return true;
     }
 
@@ -252,7 +177,6 @@ export class ApiKeyService {
     await this.apiKeyRepository.update({ id: dto.id }, updateData);
 
     await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
-    await this.cacheService.delete(CacheKeyGenerator.apiKeyValidate(dto.code, apiKey.type));
     return true;
   }
 
@@ -264,42 +188,11 @@ export class ApiKeyService {
     return this.apiKeyRepository.find({ where: { appId } });
   }
 
-  public async checkKeyType(dto: DtoApiKeyCheckKeyType) {
-    const apiKeys = await this.apiKeyRepository.find({
-      where: {
-        type: dto.type,
-        app: {
-          code: dto.appCode,
-        },
-        active: true,
-      },
+  private keyTypeString(code: string, namespace: string, type: string) {
+    return bindStringFormat('{code}_{namespace}_{type}', {
+      code: code,
+      namespace: slug(namespace.replace(new RegExp('_'), '-')),
+      type: slug(type.replace(new RegExp('_'), '-')),
     });
-
-    for (const apiKey of apiKeys) {
-      if (verify(dto.key, apiKey.key)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  public async extractPayload(
-    token: string,
-    code: string,
-    namespace: string
-  ): Promise<TJwtApiKeyPayload | null> {
-    const app = await this.appService.getByCode(code);
-
-    if (!app) return null;
-
-    const config = await this.configService.get({
-      appCode: app.code,
-      appNamespace: namespace,
-    });
-
-    const { JWT_SECRET_API_KEY } = config.configs;
-
-    return verifyJwt<TJwtApiKeyPayload>(token, JWT_SECRET_API_KEY);
   }
 }

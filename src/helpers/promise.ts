@@ -9,3 +9,9 @@ export function toPromise<TArgs extends any[], TResult>(
     return Promise.reject(error);
   }
 }
+
+export const promiseAll = <T extends readonly unknown[]>(
+  ...fns: T
+): Promise<{ [K in keyof T]: Awaited<T[K]> }> => {
+  return Promise.all(fns) as any;
+};

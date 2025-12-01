@@ -6,4 +6,5 @@ export enum ECacheKey {
   API_KEY_LIST = 'API_KEY_LIST',
   API_KEY_VALIDATE = 'API_KEY_VALIDATE',
   RATE_LIMIT = 'RATE_LIMIT',
+  KEY = 'KEY',
 }

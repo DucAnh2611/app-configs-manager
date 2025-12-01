@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { slugify } from 'transliteration';
 
 export const formatString = (format: string[], data: Record<any, any>, joinBy: string = '') => {
   return format.map((f) => data[f] || '').join(joinBy);
@@ -107,4 +108,14 @@ export const padNumberString = (num: number | string, length?: number) => {
 
 export const removeEndlines = (str: string): string => {
   return str.replace(/\r?\n/g, '');
+};
+
+export const slug = (value?: string) => {
+  if (!value) return '';
+
+  return slugify(value);
+};
+
+export const valueOrDefault = <T extends unknown>(value: T | null | undefined, def: T) => {
+  return value ?? def;
 };

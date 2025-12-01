@@ -11,7 +11,6 @@ import {
   DtoWebhookUpdateBody,
   DtoWebhookUpdateParams,
   TRequestAuth,
-  TRequestWithApiKey,
 } from '../../../types';
 
 const webhookPaths = ROUTE_PATHS.api.v1.webhook;
@@ -21,15 +20,19 @@ export const WebhookRouter = createRouter([
     path: webhookPaths.list,
     method: 'get',
     middlewares: [ValidateApiKey(EApiKeyType.WEBHOOK)],
-    handler: async (req: TRequestWithApiKey) => {
+    handler: async (req: TRequestAuth) => {
       const { webhookController } = getController();
 
-      const { appId } = req.apiKey;
+      const { appId } = req.appSign;
       const data = await webhookController.list({ appId });
 
       return data;
     },
-    handlerOptions: { controller: controllerNames.webhook.list.name, requireApiKey: true },
+    handlerOptions: {
+      controller: controllerNames.webhook.list.name,
+      requireApiKey: true,
+      requireAppSignature: true,
+    },
   },
   {
     path: webhookPaths.get,
@@ -41,8 +44,7 @@ export const WebhookRouter = createRouter([
     handler: async (req: TRequestAuth<{}, {}, DtoWebhookGet>) => {
       const { webhookController } = getController();
 
-      const { appId } = req.apiKey;
-      const { code, namespace } = req.appSign;
+      const { code, namespace, appId } = req.appSign;
       const { id } = req.vParam;
 
       const data = await webhookController.get({
@@ -70,7 +72,7 @@ export const WebhookRouter = createRouter([
     handler: async (req: TRequestAuth<DtoWebhookRegister, {}, {}>) => {
       const { webhookController } = getController();
 
-      const { appId } = req.apiKey;
+      const { appId } = req.appSign;
       const { namespace, code } = req.appSign;
 
       const data = await webhookController.register({
@@ -95,17 +97,21 @@ export const WebhookRouter = createRouter([
       ValidateDto([{ dto: DtoWebhookToggle, type: EValidateDtoType.PARAM }]),
       ValidateApiKey(EApiKeyType.UP_WEBHOOK),
     ],
-    handler: async (req: TRequestWithApiKey<{}, {}, DtoWebhookToggle>) => {
+    handler: async (req: TRequestAuth<{}, {}, DtoWebhookToggle>) => {
       const { webhookController } = getController();
 
-      const { appId } = req.apiKey;
+      const { appId } = req.appSign;
       const { id: webhookId } = req.vParam;
 
       const data = await webhookController.toggle({ appId, id: webhookId });
 
       return data;
     },
-    handlerOptions: { controller: controllerNames.webhook.toggle.name, requireApiKey: true },
+    handlerOptions: {
+      controller: controllerNames.webhook.toggle.name,
+      requireAppSignature: true,
+      requireApiKey: true,
+    },
   },
   {
     path: webhookPaths.update,
@@ -120,8 +126,7 @@ export const WebhookRouter = createRouter([
     handler: async (req: TRequestAuth<DtoWebhookUpdateBody, {}, DtoWebhookUpdateParams>) => {
       const { webhookController } = getController();
 
-      const { appId } = req.apiKey;
-      const { namespace, code } = req.appSign;
+      const { namespace, code, appId } = req.appSign;
       const { id } = req.vParam;
 
       const data = await webhookController.update({
@@ -147,16 +152,20 @@ export const WebhookRouter = createRouter([
       ValidateDto([{ dto: DtoWebhookDelete, type: EValidateDtoType.PARAM }]),
       ValidateApiKey(EApiKeyType.UP_WEBHOOK),
     ],
-    handler: async (req: TRequestWithApiKey<{}, {}, DtoWebhookDelete>) => {
+    handler: async (req: TRequestAuth<{}, {}, DtoWebhookDelete>) => {
       const { webhookController } = getController();
 
-      const { appId } = req.apiKey;
+      const { appId } = req.appSign;
       const { id } = req.vParam;
 
       const data = await webhookController.delete({ appId, id });
 
       return data;
     },
-    handlerOptions: { controller: controllerNames.webhook.delete.name, requireApiKey: true },
+    handlerOptions: {
+      controller: controllerNames.webhook.delete.name,
+      requireApiKey: true,
+      requireAppSignature: true,
+    },
   },
 ]);

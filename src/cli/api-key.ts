@@ -45,19 +45,24 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       { flags: '--description <description>', description: 'Api key description', default: '' },
       { flags: '--type <type>', description: 'Api key type', default: EApiKeyType.CONFIG },
       { flags: '--length <length>', description: 'Api key length', default: '32' },
+      {
+        flags: '--publicKeyLength <publicKeyLength>',
+        description: 'Api key public key length',
+        default: '32',
+      },
     ],
     action: async (opts: DtoApiKeyGenerate) => {
-      const generate = await apiKeyService.generate(opts);
+      const generate = await apiKeyService.generate({
+        ...opts,
+        length: Number(opts.length),
+        publicKeyLength: Number(opts.publicKeyLength),
+      });
 
       const cols: Array<[keyof typeof generate, string]> = [
         ['id', 'Id'],
-        ['formattedKey', 'Auth Key'],
+        ['publicKey', 'Auth Key'],
         ['type', 'Api Key Type'],
       ];
-
-      if (opts.type === EApiKeyType.THIRD_PARTY) {
-        cols.push(['publicKey', 'Third Party public key']);
-      }
 
       printGrid(generate, cols);
 
@@ -89,20 +94,16 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       { required: true, flags: '--code <code>', description: 'App code' },
       { required: true, flags: '--id <id>', description: 'Api key id', default: '' },
       { required: true, flags: '--namespace <namespace>', description: 'Namespace of config' },
-      { flags: '--length <length>', description: 'Api key length', default: '32' },
+      { flags: '--length <length>', description: 'Api key public length', default: '32' },
     ],
     action: async (opts: DtoApiKeyReset) => {
-      const reset = await apiKeyService.reset(opts);
+      const reset = await apiKeyService.reset({ ...opts, length: Number(opts.length) });
 
       const cols: Array<[keyof typeof reset, string]> = [
         ['id', 'Id'],
-        ['formattedKey', 'Auth Key'],
+        ['publicKey', 'Auth Key'],
         ['type', 'Api Key Type'],
       ];
-
-      if (reset.type === EApiKeyType.THIRD_PARTY) {
-        cols.push(['publicKey', 'Third Party public key']);
-      }
 
       printGrid(reset, cols);
 

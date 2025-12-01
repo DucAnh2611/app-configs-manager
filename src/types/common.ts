@@ -5,7 +5,7 @@ import { EApiKeyType, EResponseStatus, EValidateDtoType } from '../enums';
 export type TJwtApiKeyPayload = {
   appCode: string;
   type: EApiKeyType;
-  key: string;
+  keyId: string;
   appId: string;
 };
 
@@ -61,12 +61,12 @@ export type TRequestAuth<
 export type TRequestAppSign = {
   code: string;
   namespace: string;
+  appId: string;
 };
 
 export type TRequestApiKey = {
   type: EApiKeyType;
-  appId: string;
-  key: string;
+  publicKey: string;
 };
 
 export type TResponse = {

@@ -309,7 +309,7 @@ export class ConfigService {
     return {
       ...APP_CONSTANTS.DEFAULT_CONFIGS,
       ...config,
-    };
+    } as Record<string, any>;
   }
 
   private async equalCheck(appCode: string, appNamespace: string, configs: Record<string, any>) {

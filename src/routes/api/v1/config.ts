@@ -21,8 +21,7 @@ export const ConfigRouter = createRouter([
     handler: async (req: TRequestAuth) => {
       const { configController } = getController();
 
-      const { appId } = req.apiKey;
-      const { namespace, code } = req.appSign;
+      const { namespace, code, appId } = req.appSign;
 
       const data = await configController.history({
         appId,
@@ -67,8 +66,7 @@ export const ConfigRouter = createRouter([
     handler: async (req: TRequestAuth<DtoConfigUp, {}, {}>) => {
       const { configController } = getController();
 
-      const { appId } = req.apiKey;
-      const { namespace, code } = req.appSign;
+      const { namespace, code, appId } = req.appSign;
 
       const data = await configController.up({
         ...req.vBody,
@@ -95,8 +93,7 @@ export const ConfigRouter = createRouter([
     handler: async (req: TRequestAuth<{}, {}, DtoConfigToggleUse>) => {
       const { configController } = getController();
 
-      const { appId } = req.apiKey;
-      const { code, namespace } = req.appSign;
+      const { code, namespace, appId } = req.appSign;
       const { id: configId } = req.vParam;
 
       const data = await configController.toggleUse({
@@ -124,8 +121,7 @@ export const ConfigRouter = createRouter([
     handler: async (req: TRequestAuth<{}, {}, DtoConfigRollback>) => {
       const { configController } = getController();
 
-      const { appId } = req.apiKey;
-      const { code, namespace } = req.appSign;
+      const { code, namespace, appId } = req.appSign;
       const { id: configId } = req.vParam;
 
       const data = await configController.rollback({
@@ -153,8 +149,7 @@ export const ConfigRouter = createRouter([
     handler: async (req: TRequestAuth<{}, {}, DtoConfigRemove>) => {
       const { configController } = getController();
 
-      const { appId } = req.apiKey;
-      const { code, namespace } = req.appSign;
+      const { code, namespace, appId } = req.appSign;
       const { id: configId } = req.vParam;
 
       const data = await configController.remove({
