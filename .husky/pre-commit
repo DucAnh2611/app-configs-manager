@@ -5,6 +5,5 @@ echo "set RUN_FULL_TEST=TRUE"
 
 npm run test || exit 1
 
-npm run dotenv:login
 npm run dotenv:pull
 npm run dotenv:push
