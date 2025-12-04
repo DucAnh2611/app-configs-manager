@@ -4,6 +4,7 @@ export * from './crypto';
 export * from './file';
 export * from './format-string';
 export * from './jwt';
+export * from './number';
 export * from './obj';
 export * from './pagination';
 export * from './promise';

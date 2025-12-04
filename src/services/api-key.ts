@@ -1,3 +1,4 @@
+import { ManipulateType } from 'dayjs';
 import { Like } from 'typeorm';
 import { EErrorCode, EResponseStatus } from '../enums';
 import { bindStringFormat, Exception, generateBytes, slug } from '../helpers';
@@ -14,6 +15,7 @@ import {
 } from '../types';
 import { AppService } from './app';
 import { CacheService } from './cache';
+import { ConfigService } from './config';
 import { KeyService } from './key';
 
 export class ApiKeyService {
@@ -21,7 +23,8 @@ export class ApiKeyService {
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly appService: AppService,
     private readonly keyService: KeyService,
-    private readonly cacheService: CacheService
+    private readonly cacheService: CacheService,
+    private readonly configService: ConfigService
   ) {}
 
   public async validate(dto: TApiKeyServiceCheck) {
@@ -40,9 +43,6 @@ export class ApiKeyService {
 
   public async toggle(dto: DtoApiKeyToggle) {
     const apiKey = await this.getById(dto.id);
-    if (!apiKey) {
-      throw new Exception(EResponseStatus.NotFound, EErrorCode.APIKEY_NOT_EXIST);
-    }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
@@ -73,9 +73,17 @@ export class ApiKeyService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
+    const systemConfig = await this.configService.getSystemConfig();
+
     const { keyId } = await this.keyService.getRotateKey({
       type: this.keyTypeString(dto.code, dto.namespace, dto.type),
-      bytes: dto.length,
+      options: {
+        bytes: dto.length,
+        onGenerateDuration: {
+          amount: systemConfig.API_KEY_GENERATE_DURATION_AMOUNT,
+          unit: systemConfig.API_KEY_GENERATE_DURATION_UNIT as ManipulateType,
+        },
+      },
     });
 
     if (!dto.publicKeyLength) {
@@ -123,9 +131,6 @@ export class ApiKeyService {
 
   public async reset(dto: DtoApiKeyReset) {
     const apiKey = await this.getById(dto.id);
-    if (!apiKey) {
-      throw new Exception(EResponseStatus.NotFound, EErrorCode.APIKEY_NOT_EXIST);
-    }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
@@ -153,9 +158,6 @@ export class ApiKeyService {
 
   public async update(dto: DtoApiKeyUpdate) {
     const apiKey = await this.getById(dto.id);
-    if (!apiKey) {
-      throw new Exception(EResponseStatus.NotFound, EErrorCode.APIKEY_NOT_EXIST);
-    }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
@@ -181,7 +183,12 @@ export class ApiKeyService {
   }
 
   public async getById(id: string) {
-    return this.apiKeyRepository.findOneBy({ id });
+    const apiKey = await this.apiKeyRepository.findOneBy({ id });
+    if (!apiKey) {
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APIKEY_NOT_EXIST);
+    }
+
+    return apiKey;
   }
 
   public async getByApp(appId: string) {

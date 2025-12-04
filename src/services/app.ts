@@ -1,6 +1,6 @@
 import { In } from 'typeorm';
 import { EErrorCode, EResponseStatus } from '../enums';
-import { CacheKeyGenerator, Exception } from '../helpers';
+import { CacheKeyGenerator, Exception, promiseAll } from '../helpers';
 import { AppRepository } from '../repositories';
 import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate, IApp, IConfig } from '../types';
 import { CacheService } from './cache';
@@ -147,7 +147,7 @@ export class AppService {
     );
 
     if (saved.affected) {
-      await Promise.all([
+      await promiseAll([
         this.cacheService.delete(CacheKeyGenerator.appList()),
         this.cacheService.delete(CacheKeyGenerator.appDetail(dto.id)),
       ]);
@@ -162,9 +162,9 @@ export class AppService {
     });
 
     if (deleted.affected && deleted.affected > 0) {
-      await Promise.all([
+      await promiseAll([
         this.cacheService.delete(CacheKeyGenerator.appList()),
-        ...dto.ids.map(id => this.cacheService.delete(CacheKeyGenerator.appDetail(id))),
+        ...dto.ids.map((id) => this.cacheService.delete(CacheKeyGenerator.appDetail(id))),
       ]);
     }
 

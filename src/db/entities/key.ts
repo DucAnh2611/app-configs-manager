@@ -1,5 +1,5 @@
 import { EntitySchema } from 'typeorm';
-import { DB_TABLES_CONSTANTS } from '../../constants';
+import { APP_CONSTANTS, DB_TABLES_CONSTANTS } from '../../constants';
 import { EKeyStatus } from '../../enums';
 import { IKey } from '../../types';
 
@@ -33,6 +33,14 @@ export const KeyEntity = new EntitySchema<IKey>({
     version: {
       type: 'integer',
       default: -1,
+    },
+    durationAmount: {
+      type: 'integer',
+      default: APP_CONSTANTS.DEFAULT_CONFIGS.API_KEY_GENERATE_DURATION_AMOUNT,
+    },
+    durationUnit: {
+      type: 'text',
+      default: APP_CONSTANTS.DEFAULT_CONFIGS.API_KEY_GENERATE_DURATION_UNIT,
     },
     expireAt: {
       type: 'timestamp with time zone',

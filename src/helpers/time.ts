@@ -30,3 +30,9 @@ export const convertToDayjs = (timeStr: string): [number, ManipulateType] => {
       throw new Exception(EResponseStatus.BadRequest, EErrorCode.TIME_UNIT_INVALID);
   }
 };
+
+export const sleep = (second: number) => {
+  return new Promise((res) => {
+    setTimeout(res, Math.max(Math.min(second * 1000, 60 * 1000), 0));
+  });
+};

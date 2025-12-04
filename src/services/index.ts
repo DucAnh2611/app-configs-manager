@@ -31,7 +31,7 @@ export type Services = {
 
 let services: Services | null = null;
 
-export const initServices = async () => {
+export const initServices = () => {
   const cacheService = new CacheService();
   const queueService = new QueueService(getRedis());
   const cronService = new CronService(queueService);
@@ -41,16 +41,23 @@ export const initServices = async () => {
     configRepository,
     queueService
   );
+  const keyService = new KeyService(keyRepository, cacheService);
+  const configService = new ConfigService(configRepository, cacheService, keyService, cronService);
   const webhookService = new WebhookService(
     webhookRepository,
-    configRepository,
+    keyService,
     webhookHistoryService,
+    configService,
     cacheService
   );
-  const configService = new ConfigService(configRepository, cacheService, webhookService);
   const appService = new AppService(appRepository, cacheService, configService);
-  const keyService = new KeyService(keyRepository, configService, cacheService);
-  const apiKeyService = new ApiKeyService(apiKeyRepository, appService, keyService, cacheService);
+  const apiKeyService = new ApiKeyService(
+    apiKeyRepository,
+    appService,
+    keyService,
+    cacheService,
+    configService
+  );
 
   services = {
     apiKeyService,

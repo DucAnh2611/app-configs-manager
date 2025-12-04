@@ -1,6 +1,5 @@
-import dayjs, { ManipulateType } from 'dayjs';
-import { Not } from 'typeorm';
-import { KEY_CONSTANTS } from '../constants';
+import dayjs from 'dayjs';
+import { CACHE_CONSTANTS, KEY_CONSTANTS } from '../constants';
 import { ECacheKey, EErrorCode, EKeyStatus, EResponseStatus } from '../enums';
 import {
   bindStringFormat,
@@ -10,6 +9,7 @@ import {
   getFileDir,
   hash,
   promiseAll,
+  randNumber,
   readContentFile,
   slug,
   valueOrDefault,
@@ -17,14 +17,17 @@ import {
   writeContentFile,
 } from '../helpers';
 import { KeyRepository } from '../repositories';
-import { IKey, TKeyServiceGenerate, TKeyServiceGetRotateKey } from '../types';
+import {
+  IKey,
+  TKeyServiceGenerate,
+  TKeyserviceGetOriginKeyResult,
+  TKeyServiceGetRotateKey,
+} from '../types';
 import { CacheService } from './cache';
-import { ConfigService } from './config';
 
 export class KeyService {
   constructor(
     private readonly keyRepository: KeyRepository,
-    private readonly configService: ConfigService,
     private readonly cacheService: CacheService
   ) {}
 
@@ -33,9 +36,9 @@ export class KeyService {
     const key = await this.keyRepository.findOne({
       where: {
         type: safeType,
-        ...(dto.version
+        ...(dto.options?.version
           ? {
-              version: dto.version,
+              version: dto.options?.version,
             }
           : {
               status: EKeyStatus.ACTIVE,
@@ -43,57 +46,63 @@ export class KeyService {
       },
     });
 
-    if (!key) return this.generate({ type: safeType, useRotate: true, bytes: dto.bytes });
+    if (!key)
+      return this.generate({
+        type: safeType,
+        useRotate: true,
+        duration: dto.options.onGenerateDuration,
+        bytes: dto.options.bytes,
+      });
 
-    const originKey = await this.getOriginKey(key);
+    const {
+      key: originKey,
+      version: keyVersion,
+      id: keyId,
+      expiredKey,
+    } = await this.getOriginKey(key, dto.options);
 
-    return { key: originKey, version: key.version, keyId: key.id };
+    return { key: originKey, version: keyVersion, keyId, hashBytes: key.hashBytes, expiredKey };
   }
 
   public async generate(dto: TKeyServiceGenerate) {
     const safeType = this.safeType(dto.type);
-    const [currentVersion, { key, hashedKey, hashedBytes }, systemConfig] = await promiseAll(
+    const [currentVersion, { key, hashedKey }] = await promiseAll(
       this.getVersion(safeType),
-      this.genSecretKey(dto.bytes),
-      this.configService.getSystemConfig()
+      this.genSecretKey(dto.bytes)
     );
 
-    const expire = dayjs().add(
-      Number(
-        valueOrDefault<number>(
-          systemConfig['SECRET_HASH_KEY_ROTATE_TIME'],
-          KEY_CONSTANTS.DEFAULT_VALUES.SECRET_HASH_KEY_ROTATE_TIME
-        )
-      ),
-      valueOrDefault<ManipulateType>(
-        systemConfig['SECRET_HASH_KEY_ROTATE_UNIT'],
-        KEY_CONSTANTS.DEFAULT_VALUES.SECRET_HASH_KEY_ROTATE_UNIT as ManipulateType
-      )
-    );
+    if (dto.useRotate && !dto.duration) {
+      throw new Exception(
+        EResponseStatus.InternalServerError,
+        EErrorCode.KEY_GENERATE_ROTATE_MISSING_DURATION
+      );
+    }
+
+    const expire =
+      dto.useRotate && dto.duration ? dayjs().add(dto.duration.amount, dto.duration.unit) : null;
 
     const keyInstance = this.keyRepository.create({
       version: currentVersion + 1,
       type: safeType,
-      hashBytes: hashedBytes,
+      hashBytes: dto.bytes,
       hashed: hashedKey,
       status: EKeyStatus.ACTIVE,
-      expireAt: dto.useRotate ? expire.toDate() : null,
+      expireAt: expire,
     });
 
     const savedKey = await this.keyRepository.save(keyInstance);
-    await this.saveFile(savedKey, key, keyInstance.expireAt);
 
-    await promiseAll(
-      this.updateKeyStatus(currentVersion, safeType, EKeyStatus.INACTIVE),
-      this.cacheService.set(
-        CacheKeyGenerator.custom(ECacheKey.KEY, safeType, savedKey.version),
-        key
-      )
-    );
+    const [_start, _end, originKey] = await this.saveFile(savedKey, key, keyInstance.expireAt);
 
-    const [_start, _end, originKey] = key;
+    await this.updateKeyStatus(currentVersion, safeType, EKeyStatus.INACTIVE);
 
-    return { key: originKey, version: savedKey.version, keyId: savedKey.id };
+    return {
+      key: originKey,
+      version: savedKey.version,
+      keyId: savedKey.id,
+      hashBytes: dto.bytes,
+      expiredKey: null,
+    };
   }
 
   public async verify(keyId: string) {
@@ -102,8 +111,8 @@ export class KeyService {
     return verify(originKey, hashedKey);
   }
 
-  private async getKeyFromId(id: string, regenerate?: boolean) {
-    const key = await this.keyRepository.findOne({
+  private async getKeyFromId(id: string) {
+    let key = await this.keyRepository.findOne({
       where: {
         id,
       },
@@ -111,34 +120,30 @@ export class KeyService {
 
     if (!key) throw new Exception(EResponseStatus.NotFound, EErrorCode.KEY_NOT_EXIST);
 
-    const originKey = await this.getOriginKey(key, regenerate);
+    const { key: originKey } = await this.getOriginKey(key);
 
     return { originKey, hashedKey: key.hashed };
   }
 
   private async regenerate(savedKey: IKey) {
-    const { key, hashedKey, hashedBytes } = await this.genSecretKey();
+    const { key, hashedKey } = await this.genSecretKey(savedKey.hashBytes);
 
     await this.keyRepository.update(
       {
         id: savedKey.id,
       },
       {
-        hashBytes: hashedBytes,
         hashed: hashedKey,
       }
     );
-
     return await this.saveFile(savedKey, key, savedKey.expireAt);
   }
 
-  private async genSecretKey(bytes?: number) {
-    const systemConfig = await this.getSystemConfigKey();
+  private async genSecretKey(bytes: number) {
+    const key = generateBytes(randNumber({ from: 32, to: 64, decimal: 0 }));
+    const hashedKey = hash(key, { length: bytes });
 
-    const key = generateBytes(bytes ?? systemConfig.keyBytes);
-    const hashedKey = hash(key, { length: systemConfig.hashKeyBytes });
-
-    return { key: key, hashedKey: hashedKey, hashedBytes: systemConfig.hashKeyBytes };
+    return { key: key, hashedKey: hashedKey };
   }
 
   private async getVersion(safeType: string) {
@@ -155,11 +160,10 @@ export class KeyService {
   }
 
   private async updateKeyStatus(version: number, safeType: string, status: EKeyStatus) {
-    return await this.keyRepository.update(
+    return this.keyRepository.update(
       {
         version,
         type: safeType,
-        status: Not(status),
       },
       {
         status,
@@ -175,21 +179,25 @@ export class KeyService {
       valueOrDefault(expire?.toISOString(), KEY_CONSTANTS.not_expire),
     ];
 
-    const writeContent = await writeContentFile(
-      filePath,
-      bindStringFormat(KEY_CONSTANTS.keyLineFormat, {
-        start,
-        end,
-        key,
-      }),
-      { replace: true }
-    );
+    const fileContent = bindStringFormat(KEY_CONSTANTS.keyLineFormat, {
+      start,
+      end,
+      key,
+    });
+
+    const writeContent = await writeContentFile(filePath, fileContent, { replace: true });
 
     if (!writeContent) {
       await this.keyRepository.delete({ id: savedKey.id });
 
       throw new Exception(EResponseStatus.InternalServerError, EErrorCode.KEY_GENERATE_ERROR);
     }
+
+    await this.cacheService.set(
+      CacheKeyGenerator.custom(ECacheKey.KEY, savedKey.type, savedKey.version),
+      fileContent,
+      CACHE_CONSTANTS.TTL.KEY
+    );
 
     return [start, end, key];
   }
@@ -210,47 +218,69 @@ export class KeyService {
 
     await this.cacheService.set(
       CacheKeyGenerator.custom(ECacheKey.KEY, key.type, key.version),
-      keyContent
+      keyContent,
+      CACHE_CONSTANTS.TTL.KEY
     );
 
     return splited;
   }
 
-  private async getOriginKey(key: IKey, regenerate: boolean = false) {
+  private async getOriginKey(
+    key: IKey,
+    options: Partial<{ renewOnExpire: boolean }> = {}
+  ): Promise<TKeyserviceGetOriginKeyResult> {
     if (key.status === EKeyStatus.RETIRED)
       throw new Exception(EResponseStatus.Forbidden, EErrorCode.KEY_EXPIRED);
 
     let keyRaw = await this.getKey(key);
     if (!keyRaw) {
-      if (!regenerate) throw new Exception(EResponseStatus.Forbidden, EErrorCode.KEY_EXPIRED);
-      keyRaw = await this.regenerate(key);
+      await this.regenerate(key);
+      return await this.getOriginKey(key, options);
     }
 
     const [start, end, originKey] = keyRaw;
+    const now = dayjs();
 
-    if (end !== KEY_CONSTANTS.not_expire && dayjs(end).diff(dayjs()) <= 0) {
+    if (end !== KEY_CONSTANTS.not_expire && now.isAfter(end)) {
       await this.updateKeyStatus(key.version, key.type, EKeyStatus.RETIRED);
-      throw new Exception(EResponseStatus.BadRequest, EErrorCode.KEY_EXPIRED);
+
+      if (!options.renewOnExpire) {
+        throw new Exception(EResponseStatus.BadRequest, EErrorCode.KEY_EXPIRED);
+      }
+
+      const renew = await this.renewKey(key, originKey);
+      return renew;
     }
 
-    if (dayjs(start).diff(dayjs()) >= 0) {
+    if (now.isBefore(start)) {
       await this.updateKeyStatus(key.version, key.type, EKeyStatus.RETIRED);
       throw new Exception(EResponseStatus.BadRequest, EErrorCode.KEY_INVALID_NOT_START);
     }
 
-    return originKey;
+    return {
+      key: originKey,
+      version: key.version,
+      id: key.id,
+      expiredKey: null,
+    };
   }
 
-  private async getSystemConfigKey() {
-    const systemConfig = await this.configService.getSystemConfig();
+  private async renewKey(key: IKey, keyExpired: string): Promise<TKeyserviceGetOriginKeyResult> {
+    const newKey = await this.generate({
+      type: key.type,
+      bytes: key.hashBytes,
+      useRotate: true,
+      duration: {
+        amount: key.durationAmount,
+        unit: key.durationUnit,
+      },
+    });
 
     return {
-      keyBytes: Number(
-        systemConfig['SECRET_KEY_BYTES'] ?? KEY_CONSTANTS.DEFAULT_VALUES.SECRET_KEY_BYTES
-      ),
-      hashKeyBytes: Number(
-        systemConfig['SECRET_HASH_KEY_BYTES'] ?? KEY_CONSTANTS.DEFAULT_VALUES.SECRET_HASH_KEY_BYTES
-      ),
+      key: newKey.key,
+      version: newKey.version,
+      id: newKey.keyId,
+      expiredKey: { id: key.id, originKey: keyExpired },
     };
   }
 

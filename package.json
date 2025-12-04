@@ -6,11 +6,11 @@
     "app_config": "./bin/app_config.ts"
   },
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "npm run migration:run && ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "migration:generate": "node -e \"const args = process.argv.slice(1); const name = args.pop(); if (!name) { console.error('❌ Missing migration name'); process.exit(1); } const { execSync } = require('child_process'); execSync(`npx ts-node --esm ./node_modules/typeorm/cli.js migration:generate -d src/db/data-source.ts src/migrations/${name}`, { stdio: 'inherit' });\"",
-    "migration:run": "npm run build && npx ts-node --esm ./node_modules/typeorm/cli.js migration:run -d src/db/data-source.ts",
+    "migration:run": "npm run clean && npm run build && npx ts-node --esm ./node_modules/typeorm/cli.js migration:run -d src/db/data-source.ts",
     "migration:revert": "npx ts-node --esm ./node_modules/typeorm/cli.js migration:revert -d src/db/data-source.ts",
     "dotenv:pull": "npx dotenv-vault@latest pull",
     "dotenv:push": "npx dotenv-vault@latest push",
@@ -18,10 +18,12 @@
     "token:new": "node -e \"const len=parseInt(process.argv[1]||32); console.log(require('crypto').randomBytes(len).toString('hex'))\"",
     "prepare": "husky install",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"No tests yet\" && exit 0",
     "prepush": "npm run lint && npm run typecheck",
     "cli": "npx ts-node src/cli/index.ts",
-    "app": "npm run cli --"
+    "app": "npm run cli --",
+    "test": "vitest --run",
+    "test:watch": "vitest --watch",
+    "clean": "rimraf dist"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
@@ -63,7 +65,7 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
-    "@types/node": "^24.6.2",
+    "@types/node": "^24.10.1",
     "@types/redis": "^4.0.10",
     "@typescript-eslint/eslint-plugin": "^8.45.0",
     "@typescript-eslint/parser": "^8.45.0",
@@ -73,7 +75,10 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.3",
     "prettier": "^3.6.2",
+    "rimraf": "^6.1.2",
+    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
   }
 }

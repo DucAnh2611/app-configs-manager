@@ -1,3 +1,4 @@
+import { ManipulateType } from 'dayjs';
 import { EErrorCode, EResponseStatus } from '../enums';
 import {
   EWebhookBodyType,
@@ -5,8 +6,18 @@ import {
   EWebhookTriggerOn,
   EWebhookTriggerType,
 } from '../enums/webhook';
-import { decrypt, encrypt, Exception } from '../helpers';
-import { ConfigRepository, WebhookRepository } from '../repositories';
+import {
+  bindStringFormat,
+  CacheKeyGenerator,
+  decrypt,
+  encrypt,
+  Exception,
+  excludeFields,
+  promiseAll,
+  randNumber,
+  valueOrDefault,
+} from '../helpers';
+import { WebhookRepository } from '../repositories';
 import {
   TWebhookServiceDelete,
   TWebhookServiceGet,
@@ -16,16 +27,17 @@ import {
   TWebhookServiceTrigger,
   TWebhookServiceUpdate,
 } from '../types';
-import { ConfigService } from './config';
-import { WebhookHistoryService } from './webhook-history';
 import { CacheService } from './cache';
-import { CacheKeyGenerator } from '../helpers';
+import { ConfigService } from './config';
+import { KeyService } from './key';
+import { WebhookHistoryService } from './webhook-history';
 
 export class WebhookService {
   constructor(
     private readonly webhookRepository: WebhookRepository,
-    private readonly configRepository: ConfigRepository,
+    private readonly keyService: KeyService,
     private readonly webhookHistoryService: WebhookHistoryService,
+    private readonly configService: ConfigService,
     private readonly cacheService: CacheService
   ) {}
 
@@ -57,7 +69,7 @@ export class WebhookService {
       isActive: false,
     });
 
-    await Promise.all([
+    await promiseAll([
       this.cacheService.delete(CacheKeyGenerator.webhookList(dto.appId)),
       this.cacheService.delete(CacheKeyGenerator.webhookDetail(webhook.id)),
     ]);
@@ -89,7 +101,7 @@ export class WebhookService {
       }
     );
 
-    await Promise.all([
+    await promiseAll([
       this.cacheService.delete(CacheKeyGenerator.webhookList(dto.appId)),
       this.cacheService.delete(CacheKeyGenerator.webhookDetail(dto.id)),
     ]);
@@ -120,7 +132,7 @@ export class WebhookService {
       },
     });
 
-await this.cacheService.set(cacheKey, webhooks, 300);
+    await this.cacheService.set(cacheKey, webhooks, 300);
 
     return webhooks;
   }
@@ -139,7 +151,7 @@ await this.cacheService.set(cacheKey, webhooks, 300);
       { isActive: !webhook.isActive }
     );
 
-await Promise.all([
+    await promiseAll([
       this.cacheService.delete(CacheKeyGenerator.webhookList(dto.appId)),
       this.cacheService.delete(CacheKeyGenerator.webhookDetail(dto.id)),
     ]);
@@ -158,8 +170,7 @@ await Promise.all([
 
     await this.webhookRepository.softDelete({ id: dto.id });
 
-  
-    await Promise.all([
+    await promiseAll([
       this.cacheService.delete(CacheKeyGenerator.webhookList(dto.appId)),
       this.cacheService.delete(CacheKeyGenerator.webhookDetail(dto.id)),
     ]);
@@ -181,10 +192,16 @@ await Promise.all([
 
     const result = {
       ...webhookData,
-      authKey: authKey ? await this.decryptAuthKey(authKey, dto.appCode, dto.appNamespace) : null,
+      authKey: authKey
+        ? await this.decryptAuthKey(
+            authKey,
+            dto.appCode,
+            dto.appNamespace,
+            this.refreshAuthKey(exist.id, authKey, dto.appCode, dto.appNamespace).bind(this)
+          )
+        : null,
     };
-    const { authKey: _, ...cachedData } = result;
-    await this.cacheService.set(cacheKey, cachedData, 300);
+    await this.cacheService.set(cacheKey, excludeFields(result, ['authKey']), 300);
 
     return result;
   }
@@ -217,44 +234,59 @@ await Promise.all([
     }
   }
 
+  private refreshAuthKey(keyId: string, authKey: string, code: string, namespace: string) {
+    return async (expiredKey: string, bytes: number) => {
+      const decrypted = decrypt<string>(authKey, expiredKey, bytes);
+
+      const encrypted = await this.encryptAuthKey(decrypted, code, namespace);
+
+      await this.webhookRepository.update(
+        {
+          id: keyId,
+        },
+        {
+          authKey: encrypted,
+        }
+      );
+    };
+  }
+
   private async getHashConfig(code: string, namespace: string) {
-    const config = await this.configRepository.findOne({
-      where: {
-        app: { code },
-        namespace,
-        isUse: true,
+    const systemConfig = await this.configService.getSystemConfig();
+
+    return this.keyService.getRotateKey({
+      type: bindStringFormat('{type}_{code}_{namespace}', { type: 'auth-key', code, namespace }),
+      options: {
+        renewOnExpire: true,
+        bytes: randNumber({ from: 32, to: 64, decimal: 0 }),
+        onGenerateDuration: {
+          amount: systemConfig.WEBHOOK_KEY_DURATION_AMOUNT,
+          unit: systemConfig.WEBHOOK_KEY_DURATION_UNIT as ManipulateType,
+        },
       },
     });
-
-    if (!config) {
-      throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
-    }
-
-    return ConfigService.safeConfig(ConfigService.decryptConfig(config.configs));
   }
 
   private async encryptAuthKey(authKey: string, code: string, namespace: string) {
-    const { WEBHOOK_AUTHKEY_ENCRYPT_SECRET_KEY, WEBHOOK_AUTHKEY_ENCRYPT_BYPES } =
-      await this.getHashConfig(code, namespace);
-
-    const encypted = encrypt(
-      authKey,
-      WEBHOOK_AUTHKEY_ENCRYPT_SECRET_KEY,
-      WEBHOOK_AUTHKEY_ENCRYPT_BYPES
-    );
+    const { key, hashBytes } = await this.getHashConfig(code, namespace);
+    const encypted = encrypt(authKey, key, hashBytes);
 
     return encypted.encryptedPayload;
   }
 
-  private async decryptAuthKey(authKey: string, code: string, namespace: string) {
-    const { WEBHOOK_AUTHKEY_ENCRYPT_SECRET_KEY, WEBHOOK_AUTHKEY_ENCRYPT_BYPES } =
-      await this.getHashConfig(code, namespace);
+  private async decryptAuthKey(
+    authKey: string,
+    code: string,
+    namespace: string,
+    onExpired?: (expiredKey: string, bytes: number) => Promise<void>
+  ) {
+    const { key, hashBytes, expiredKey } = await this.getHashConfig(code, namespace);
 
-    const decrypted = decrypt(
-      authKey,
-      WEBHOOK_AUTHKEY_ENCRYPT_SECRET_KEY,
-      WEBHOOK_AUTHKEY_ENCRYPT_BYPES
-    );
+    // When expired key -> decrypt the expiredKey
+    const decryptKey = valueOrDefault<string>(expiredKey?.originKey, key);
+    const decrypted = decrypt<string>(authKey, decryptKey, hashBytes);
+
+    if (expiredKey && onExpired) await onExpired(expiredKey.originKey, hashBytes);
 
     return decrypted;
   }

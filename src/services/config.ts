@@ -1,15 +1,8 @@
 import { In, Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
-import { EErrorCode, EResponseStatus, EWebhookTriggerOn, EWebhookTriggerType } from '../enums';
-import {
-  CacheKeyGenerator,
-  decrypt,
-  deepCompare,
-  encrypt,
-  Exception,
-  excludeFields,
-} from '../helpers';
+import { EErrorCode, EResponseStatus, EWebhookTriggerType } from '../enums';
+import { CacheKeyGenerator, decrypt, deepCompare, encrypt, Exception } from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
   IApp,
@@ -25,13 +18,15 @@ import {
   TConfigUseCache,
 } from '../types';
 import { CacheService } from './cache';
-import { WebhookService } from './webhook';
+import { CronService } from './cron';
+import { KeyService } from './key';
 
 export class ConfigService {
   constructor(
     private readonly configRepository: ConfigRepository,
     private readonly cacheService: CacheService,
-    private readonly webhookService: WebhookService
+    private readonly keyService: KeyService,
+    private readonly cronService: CronService
   ) {}
 
   public async history(dto: TConfigServiceHistory) {
@@ -296,7 +291,7 @@ export class ConfigService {
   }
 
   public static decryptConfig(config: string) {
-    const decrypted = decrypt(
+    const decrypted = decrypt<Record<string, any>>(
       config,
       COMMON_CONFIG.APP_CONFIG_ENCRYPT_SECRET_KEY,
       COMMON_CONFIG.APP_CONFIG_ENCRYPT_BYPES
@@ -385,12 +380,13 @@ export class ConfigService {
     appId: string,
     triggerType: EWebhookTriggerType
   ) {
-    await this.webhookService.trigger({
-      appCode: appCode,
-      appId: appId,
-      data: excludeFields(this.decodeConfig(data), ['app', 'deletedAt']),
-      triggerOn: EWebhookTriggerOn.CONFIG,
-      triggerType,
-    });
+    // push to queue job
+    // await this.webhookService.trigger({
+    //   appCode: appCode,
+    //   appId: appId,
+    //   data: excludeFields(this.decodeConfig(data), ['app', 'deletedAt']),
+    //   triggerOn: EWebhookTriggerOn.CONFIG,
+    //   triggerType,
+    // });
   }
 }

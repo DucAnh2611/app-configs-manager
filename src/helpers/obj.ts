@@ -1,8 +1,8 @@
-export const excludeFields = <T extends Record<string, any>>(
+export const excludeFields = <T extends Record<string, any> = {}>(
   data: T,
-  excludes: string[]
+  excludes: Array<keyof T>
 ): Partial<T> => {
-  const clone: any = structuredClone(data);
+  const clone: T = structuredClone(data);
 
   const deletePath = (obj: any, path: string) => {
     if (!obj) return;
@@ -48,7 +48,7 @@ export const excludeFields = <T extends Record<string, any>>(
     removeRecursively(obj, 0);
   };
 
-  for (const path of excludes) deletePath(clone, path);
+  for (const path of excludes) deletePath(clone, String(path));
 
   return clone;
 };

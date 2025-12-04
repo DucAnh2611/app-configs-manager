@@ -1,3 +1,4 @@
+import { ManipulateType } from 'dayjs';
 import {
   EApiKeyType,
   EKeyStatus,
@@ -87,6 +88,8 @@ export interface IKey {
   hashBytes: number;
   version: number;
   status: EKeyStatus;
+  durationAmount: number;
+  durationUnit: ManipulateType;
   expireAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

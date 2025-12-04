@@ -60,7 +60,7 @@ export function encrypt(
   };
 }
 
-export function decrypt(encryptedPayload: string, secretKey: string, bytes: number) {
+export function decrypt<T>(encryptedPayload: string, secretKey: string, bytes: number): T {
   const data = Buffer.from(encryptedPayload, 'base64');
   const tagLength = 16;
 
@@ -75,5 +75,5 @@ export function decrypt(encryptedPayload: string, secretKey: string, bytes: numb
 
   const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
-  return JSON.parse(decrypted.toString());
+  return JSON.parse(decrypted.toString()) as T;
 }
