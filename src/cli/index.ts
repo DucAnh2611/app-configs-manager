@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import 'reflect-metadata';
 import { initControllers } from '../controllers';
 import { AppDataSource } from '../db';
+import { printAppTable } from '../helpers';
 import { connectRedis, logger } from '../libs';
 import { initServices } from '../services';
 import { registerApiKeyCommands } from './api-key';
@@ -29,6 +30,7 @@ const InitCli = async () => {
       await AppDataSource.destroy();
     })
     .catch((err) => {
+      printAppTable([{ list: true }], ['list']);
       logger.error(err);
       process.exit(1);
     });

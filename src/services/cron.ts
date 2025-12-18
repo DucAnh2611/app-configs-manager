@@ -22,8 +22,11 @@ export class CronService {
 
     this.queueService.createWorker(job.name, job.workerHandler, job.concurrency);
 
-    const task = cron.schedule(job.expression, async () => {
-      await job.handler();
+    const { expression, register } = job;
+    if (!expression || !register) return;
+
+    const task = cron.schedule(expression, async () => {
+      await register();
     });
 
     this.registry.set(job.name, { job, task });

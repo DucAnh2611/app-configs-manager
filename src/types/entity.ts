@@ -88,8 +88,8 @@ export interface IKey {
   hashBytes: number;
   version: number;
   status: EKeyStatus;
-  durationAmount: number;
-  durationUnit: ManipulateType;
+  durationAmount: number | null;
+  durationUnit: ManipulateType | null;
   expireAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

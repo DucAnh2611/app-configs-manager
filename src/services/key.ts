@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
+import { Not } from 'typeorm';
 import { CACHE_CONSTANTS, KEY_CONSTANTS } from '../constants';
-import { ECacheKey, EErrorCode, EKeyStatus, EResponseStatus } from '../enums';
+import { ECacheKey, EErrorCode, EKeyBytesMode, EKeyStatus, EResponseStatus } from '../enums';
 import {
+  attachField,
   bindStringFormat,
   CacheKeyGenerator,
   Exception,
@@ -19,10 +21,12 @@ import {
 import { KeyRepository } from '../repositories';
 import {
   IKey,
+  TKeyGenerateDuration,
   TKeyServiceGenerate,
   TKeyserviceGetOriginKeyResult,
   TKeyServiceGetRotateKey,
 } from '../types';
+import { processConditions } from '../utils';
 import { CacheService } from './cache';
 
 export class KeyService {
@@ -39,6 +43,7 @@ export class KeyService {
         ...(dto.options?.version
           ? {
               version: dto.options?.version,
+              status: Not(EKeyStatus.RETIRED),
             }
           : {
               status: EKeyStatus.ACTIVE,
@@ -59,7 +64,7 @@ export class KeyService {
       version: keyVersion,
       id: keyId,
       expiredKey,
-    } = await this.getOriginKey(key, dto.options);
+    } = await this.getOriginKey(key, { ...dto.options, useRotateKey: true });
 
     return { key: originKey, version: keyVersion, keyId, hashBytes: key.hashBytes, expiredKey };
   }
@@ -88,6 +93,8 @@ export class KeyService {
       hashed: hashedKey,
       status: EKeyStatus.ACTIVE,
       expireAt: expire,
+      durationAmount: dto.useRotate && dto.duration ? dto.duration.amount : null,
+      durationUnit: dto.useRotate && dto.duration ? dto.duration.unit : null,
     });
 
     const savedKey = await this.keyRepository.save(keyInstance);
@@ -111,6 +118,28 @@ export class KeyService {
     return verify(originKey, hashedKey);
   }
 
+  public static getBytes(
+    mode: EKeyBytesMode,
+    fixedBytes: number,
+    randFrom: number | null,
+    randTo: number | null,
+    randDecimal: number | null
+  ) {
+    switch (mode) {
+      case EKeyBytesMode.FIXED:
+        return fixedBytes;
+      case EKeyBytesMode.RANDOM:
+        return randNumber(
+          attachField(
+            {},
+            { from: randFrom, when: !Number.isNaN(randFrom) },
+            { to: randTo, when: !Number.isNaN(randTo) },
+            { decimal: randDecimal, when: !Number.isNaN(randDecimal) }
+          )
+        );
+    }
+  }
+
   private async getKeyFromId(id: string) {
     let key = await this.keyRepository.findOne({
       where: {
@@ -120,9 +149,9 @@ export class KeyService {
 
     if (!key) throw new Exception(EResponseStatus.NotFound, EErrorCode.KEY_NOT_EXIST);
 
-    const { key: originKey } = await this.getOriginKey(key);
+    const { key: originKey, expiredKey } = await this.getOriginKey(key);
 
-    return { originKey, hashedKey: key.hashed };
+    return { originKey: valueOrDefault(expiredKey?.originKey, originKey), hashedKey: key.hashed };
   }
 
   private async regenerate(savedKey: IKey) {
@@ -227,10 +256,13 @@ export class KeyService {
 
   private async getOriginKey(
     key: IKey,
-    options: Partial<{ renewOnExpire: boolean }> = {}
+    options: Partial<{
+      renewOnExpire: boolean;
+      onGenerateDuration: TKeyGenerateDuration;
+      useRotateKey: boolean;
+    }> = {}
   ): Promise<TKeyserviceGetOriginKeyResult> {
-    if (key.status === EKeyStatus.RETIRED)
-      throw new Exception(EResponseStatus.Forbidden, EErrorCode.KEY_EXPIRED);
+    const now = dayjs();
 
     let keyRaw = await this.getKey(key);
     if (!keyRaw) {
@@ -239,21 +271,29 @@ export class KeyService {
     }
 
     const [start, end, originKey] = keyRaw;
-    const now = dayjs();
 
-    if (end !== KEY_CONSTANTS.not_expire && now.isAfter(end)) {
-      await this.updateKeyStatus(key.version, key.type, EKeyStatus.RETIRED);
-
+    if (
+      processConditions({}).or(
+        () => end !== KEY_CONSTANTS.not_expire && now.isAfter(end),
+        () => key.status === EKeyStatus.RETIRED,
+        () => now.isAfter(key.expireAt)
+      )
+    ) {
       if (!options.renewOnExpire) {
+        await this.updateKeyStatus(key.version, key.type, EKeyStatus.RETIRED);
         throw new Exception(EResponseStatus.BadRequest, EErrorCode.KEY_EXPIRED);
       }
 
-      const renew = await this.renewKey(key, originKey);
+      const renew = await this.renewKey(
+        key,
+        originKey,
+        !!options.useRotateKey,
+        options.onGenerateDuration
+      );
       return renew;
     }
 
     if (now.isBefore(start)) {
-      await this.updateKeyStatus(key.version, key.type, EKeyStatus.RETIRED);
       throw new Exception(EResponseStatus.BadRequest, EErrorCode.KEY_INVALID_NOT_START);
     }
 
@@ -265,15 +305,17 @@ export class KeyService {
     };
   }
 
-  private async renewKey(key: IKey, keyExpired: string): Promise<TKeyserviceGetOriginKeyResult> {
+  private async renewKey(
+    key: IKey,
+    keyExpired: string,
+    useRotate: boolean,
+    duration?: TKeyGenerateDuration
+  ): Promise<TKeyserviceGetOriginKeyResult> {
     const newKey = await this.generate({
       type: key.type,
       bytes: key.hashBytes,
-      useRotate: true,
-      duration: {
-        amount: key.durationAmount,
-        unit: key.durationUnit,
-      },
+      useRotate,
+      duration,
     });
 
     return {

@@ -1,7 +1,7 @@
-import { ManipulateType } from 'dayjs';
 import { Like } from 'typeorm';
+import { APP_CONSTANTS } from '../constants';
 import { EErrorCode, EResponseStatus } from '../enums';
-import { bindStringFormat, Exception, generateBytes, slug } from '../helpers';
+import { Exception, generateBytes } from '../helpers';
 import { CacheKeyGenerator } from '../helpers/cache';
 import { ApiKeyRepository } from '../repositories';
 import {
@@ -73,7 +73,12 @@ export class ApiKeyService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
-    const systemConfig = await this.configService.getSystemConfig();
+    const systemConfig = await this.configService
+      .getSystemConfig({
+        API_KEY_GENERATE_DURATION_AMOUNT: 'number',
+        API_KEY_GENERATE_DURATION_UNIT: 'dateUnit',
+      })
+      .allowNull([]);
 
     const { keyId } = await this.keyService.getRotateKey({
       type: this.keyTypeString(dto.code, dto.namespace, dto.type),
@@ -81,7 +86,7 @@ export class ApiKeyService {
         bytes: dto.length,
         onGenerateDuration: {
           amount: systemConfig.API_KEY_GENERATE_DURATION_AMOUNT,
-          unit: systemConfig.API_KEY_GENERATE_DURATION_UNIT as ManipulateType,
+          unit: systemConfig.API_KEY_GENERATE_DURATION_UNIT,
         },
       },
     });
@@ -196,10 +201,6 @@ export class ApiKeyService {
   }
 
   private keyTypeString(code: string, namespace: string, type: string) {
-    return bindStringFormat('{code}_{namespace}_{type}', {
-      code: code,
-      namespace: slug(namespace.replace(new RegExp('_'), '-')),
-      type: slug(type.replace(new RegExp('_'), '-')),
-    });
+    return APP_CONSTANTS.FORMATS.keyType.apiKey(code, namespace, type);
   }
 }

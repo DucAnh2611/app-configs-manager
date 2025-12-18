@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import { In, IsNull, LessThan, MoreThanOrEqual, Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
+import { APP_CONSTANTS } from '../constants';
 import { QUEUE_CONSTANTS } from '../constants/queue';
 import { EErrorCode, EResponseStatus, EWebhookHistoryStatus } from '../enums';
 import {
@@ -9,6 +10,7 @@ import {
   getPaginationQuery,
   getPaginationResponse,
   getSortObject,
+  randNumber,
 } from '../helpers';
 import { getAxios } from '../libs';
 import { ConfigRepository, WebhookHistoryRepository } from '../repositories';
@@ -22,6 +24,7 @@ import {
   TWebhookHistoryServiceUpdate,
 } from '../types';
 import { ConfigService } from './config';
+import { KeyService } from './key';
 import { QueueService } from './queue';
 
 export class WebhookHistoryService {
@@ -33,6 +36,7 @@ export class WebhookHistoryService {
   constructor(
     private readonly webhookHistoryRepository: WebhookHistoryRepository,
     private readonly configRepository: ConfigRepository,
+    private readonly keyService: KeyService,
     private readonly queueService: QueueService
   ) {}
 
@@ -174,8 +178,8 @@ export class WebhookHistoryService {
             ? {
                 authHeader: {
                   key: webhookConfig.authKey,
-                  format: WEBHOOK_AUTH_HEADER_FORMAT,
-                  header: WEBHOOK_AUTH_HEADER_NAME,
+                  format: WEBHOOK_AUTH_HEADER_FORMAT as string,
+                  header: WEBHOOK_AUTH_HEADER_NAME as string,
                 },
               }
             : {}),
@@ -241,7 +245,7 @@ export class WebhookHistoryService {
       COMMON_CONFIG.APP_ENV
     );
 
-    const [time, unit] = convertToDayjs(WEBHOOK_HISTORY_CLEAN_UP_PERIOD);
+    const [time, unit] = convertToDayjs(WEBHOOK_HISTORY_CLEAN_UP_PERIOD as string);
 
     const list = await this.webhookHistoryRepository.find({
       where: {
@@ -263,7 +267,7 @@ export class WebhookHistoryService {
       COMMON_CONFIG.APP_ENV
     );
 
-    const [time, unit] = convertToDayjs(WEBHOOK_HISTORY_CLEAN_UP_PERIOD);
+    const [time, unit] = convertToDayjs(WEBHOOK_HISTORY_CLEAN_UP_PERIOD as string);
 
     const cleanList = await this.webhookHistoryRepository.find({
       where: {
@@ -290,6 +294,21 @@ export class WebhookHistoryService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.CONFIG_NOT_EXIST);
     }
 
-    return ConfigService.safeConfig(ConfigService.decryptConfig(config.configs));
+    const { expiredKey, key } = await this.keyService.getRotateKey({
+      type: APP_CONSTANTS.FORMATS.keyType.config(config.appId, config.namespace),
+      options: {
+        version: ConfigService.getSecretKeyVersion(config.configs),
+        bytes: randNumber({ from: 32, to: 64, decimal: 0 }),
+        onGenerateDuration: {
+          amount: 30,
+          unit: 's',
+        },
+        renewOnExpire: true,
+      },
+    });
+
+    return ConfigService.safeConfig(
+      ConfigService.decryptConfig(config.configs, expiredKey?.originKey ?? key)
+    );
   }
 }

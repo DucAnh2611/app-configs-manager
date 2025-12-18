@@ -1,14 +1,25 @@
 import { In, Not } from 'typeorm';
 import { COMMON_CONFIG } from '../configs';
 import { APP_CONSTANTS } from '../constants';
-import { EErrorCode, EResponseStatus, EWebhookTriggerType } from '../enums';
-import { CacheKeyGenerator, decrypt, deepCompare, encrypt, Exception } from '../helpers';
+import { QUEUE_CONSTANTS } from '../constants/queue';
+import { EErrorCode, EResponseStatus, EWebhookTriggerOn, EWebhookTriggerType } from '../enums';
+import {
+  bindStringFormat,
+  CacheKeyGenerator,
+  decrypt,
+  deepCompare,
+  encrypt,
+  Exception,
+  excludeFields,
+  promiseAll,
+  randNumber,
+  valueOrDefault,
+} from '../helpers';
 import { ConfigRepository } from '../repositories';
 import {
-  IApp,
   IConfig,
   TConfigDecoded,
-  TConfigServiceBulkUp,
+  TConfigRecords,
   TConfigServiceGet,
   TConfigServiceHistory,
   TConfigServiceRemove,
@@ -17,16 +28,18 @@ import {
   TConfigServiceUp,
   TConfigUseCache,
 } from '../types';
+import { ConfigExtractor, TTransformConfigParams } from '../utils';
+import { AppService } from './app';
 import { CacheService } from './cache';
-import { CronService } from './cron';
 import { KeyService } from './key';
+import { QueueService } from './queue';
 
 export class ConfigService {
   constructor(
     private readonly configRepository: ConfigRepository,
     private readonly cacheService: CacheService,
     private readonly keyService: KeyService,
-    private readonly cronService: CronService
+    private readonly queueService: QueueService
   ) {}
 
   public async history(dto: TConfigServiceHistory) {
@@ -63,7 +76,11 @@ export class ConfigService {
     }
 
     const config = await this.configRepository.findOne({
-      where: { app: { code: dto.appCode }, namespace: dto.appNamespace, isUse: true },
+      where: {
+        app: { code: AppService.safeCode(dto.appCode) },
+        namespace: dto.appNamespace,
+        isUse: true,
+      },
     });
 
     if (!config) {
@@ -81,23 +98,31 @@ export class ConfigService {
 
     const newVersion = await this.getNewVersion(dto.appId, dto.appNamespace);
 
-    await this.unusePreviousVersion(dto.appId, dto.appNamespace);
+    const [{ hashBytes, key, version }] = await promiseAll(
+      this.getSecretKey(dto.appId, dto.appNamespace),
+      this.unusePreviousVersion(dto.appId, dto.appNamespace)
+    );
 
     const entity = this.configRepository.create({
       appId: dto.appId,
       namespace: dto.appNamespace,
       isUse: true,
-      configs: ConfigService.encryptConfig(ConfigService.safeConfig(dto.configs)),
+      configs: ConfigService.encryptConfig(
+        ConfigService.safeConfig(dto.configs),
+        version,
+        key,
+        hashBytes
+      ),
       version: newVersion,
     });
 
     const newConfig = await this.configRepository.save(entity);
 
-    const [cached] = await Promise.all([
+    const [cached] = await promiseAll(
       this.cache(newConfig, dto),
-      this.triggerWebhookOnChange(newConfig, dto.appCode, dto.appId, EWebhookTriggerType.CHANGE),
-      this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
-    ]);
+      this.triggerWebhookOnChange(newConfig, dto.appCode, EWebhookTriggerType.CHANGE),
+      this.cacheService.delete(this.getCacheKey(dto, this.history.name))
+    );
 
     return cached;
   }
@@ -126,12 +151,7 @@ export class ConfigService {
 
     const [cached] = await Promise.all([
       this.cache(configData, dto),
-      this.triggerWebhookOnChange(
-        config,
-        config.app.code,
-        config.appId,
-        EWebhookTriggerType.CHANGE
-      ),
+      this.triggerWebhookOnChange(config, config.app.code, EWebhookTriggerType.CHANGE),
       this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 
@@ -156,12 +176,7 @@ export class ConfigService {
 
     const [cached] = await Promise.all([
       this.cache(config, dto),
-      this.triggerWebhookOnChange(
-        config,
-        config.app.code,
-        config.appId,
-        EWebhookTriggerType.REMOVE
-      ),
+      this.triggerWebhookOnChange(config, config.app.code, EWebhookTriggerType.REMOVE),
       this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 
@@ -193,67 +208,45 @@ export class ConfigService {
 
     const [cached] = await Promise.all([
       this.cache(rollbacked, dto),
-      this.triggerWebhookOnChange(
-        config,
-        config.app.code,
-        config.appId,
-        EWebhookTriggerType.REMOVE
-      ),
+      this.triggerWebhookOnChange(config, config.app.code, EWebhookTriggerType.REMOVE),
       this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 
     return cached;
   }
 
-  public async migrate(apps: IApp[]) {
-    const bulkUpPayload = await Promise.all(
-      apps.map(
-        async (app) =>
-          ({
-            appId: app.id,
-            configs: app.configs,
-            namespace: 'dev',
-            isUse: true,
-            version: await this.getNewVersion(app.id, 'dev'),
-          }) as TConfigServiceBulkUp
-      )
-    );
-
-    const result = await this.bulkUp(bulkUpPayload);
-
-    await Promise.all(
-      apps.map((app) => {
-        const cacheKey = CacheKeyGenerator.config(app.id, 'dev');
-        return this.cacheService.delete(cacheKey);
-      })
-    );
-
-    return result;
+  public getSystemConfig<T extends Record<string, TTransformConfigParams>>(configSchema: T) {
+    return {
+      throwOnNull: async <K extends keyof T>(keys: K[]) => {
+        const extractor = await this.getExtractor.bind(this)(
+          COMMON_CONFIG.APP_CODE,
+          COMMON_CONFIG.APP_ENV,
+          configSchema
+        );
+        return extractor.throwOnNull(keys);
+      },
+      allowNull: async <K extends keyof T>(keys: K[]) => {
+        const extractor = await this.getExtractor.bind(this)(
+          COMMON_CONFIG.APP_CODE,
+          COMMON_CONFIG.APP_ENV,
+          configSchema
+        );
+        return extractor.allowNull(keys);
+      },
+    };
   }
 
-  public async getSystemConfig() {
+  private async getExtractor<T extends Record<string, TTransformConfigParams>>(
+    appCode: string,
+    appNamespace: string,
+    configSchema: T
+  ) {
     const config = await this.get({
-      appCode: COMMON_CONFIG.APP_CODE,
-      appNamespace: COMMON_CONFIG.APP_ENV,
+      appCode,
+      appNamespace,
     });
 
-    return ConfigService.safeConfig(config.configs);
-  }
-
-  private async bulkUp(dtos: TConfigServiceBulkUp[]) {
-    const saveConfigs = await Promise.all(
-      dtos.map(async (dto) =>
-        this.configRepository.create({
-          appId: dto.appId,
-          configs: ConfigService.encryptConfig(ConfigService.safeConfig(dto.configs)),
-          isUse: dto.isUse,
-          namespace: dto.namespace,
-          version: dto.version,
-        })
-      )
-    );
-
-    return this.configRepository.save(saveConfigs);
+    return new ConfigExtractor(ConfigService.safeConfig(config.configs)).select(configSchema);
   }
 
   private async unusePreviousVersion(appId: string, namespace: string) {
@@ -280,41 +273,78 @@ export class ConfigService {
     return currentVersion.version + 1;
   }
 
-  public static encryptConfig(config: Record<string, any>) {
-    const encypted = encrypt(
-      config,
-      COMMON_CONFIG.APP_CONFIG_ENCRYPT_SECRET_KEY,
-      COMMON_CONFIG.APP_CONFIG_ENCRYPT_BYPES
-    );
+  public static encryptConfig(
+    config: TConfigRecords,
+    keyVersion: number,
+    secret: string,
+    bytes: number
+  ) {
+    const encrypted = encrypt(config, secret, bytes).encryptedPayload;
 
-    return encypted.encryptedPayload;
+    return bindStringFormat('{keyVersion}_{encrypted}', { keyVersion, encrypted });
   }
 
-  public static decryptConfig(config: string) {
-    const decrypted = decrypt<Record<string, any>>(
-      config,
-      COMMON_CONFIG.APP_CONFIG_ENCRYPT_SECRET_KEY,
-      COMMON_CONFIG.APP_CONFIG_ENCRYPT_BYPES
-    );
+  public static getSecretKeyVersion(hashedConfig: string) {
+    const [keyVersion, hashed] = hashedConfig.split('_');
 
-    return decrypted;
+    if (!keyVersion || !hashed)
+      throw new Exception(EResponseStatus.InternalServerError, EErrorCode.INTERNAL_SERVER);
+
+    return Number(keyVersion);
   }
 
-  public static safeConfig(config: Record<string, any>) {
+  public static getHashedTokenConfig(hashedConfig: string) {
+    const [keyVersion, hashed] = hashedConfig.split('_');
+
+    if (!keyVersion || !hashed)
+      throw new Exception(EResponseStatus.InternalServerError, EErrorCode.INTERNAL_SERVER);
+
+    return hashed;
+  }
+
+  public static decryptConfig(config: string, secret: string) {
+    return decrypt<TConfigRecords>(config, secret);
+  }
+
+  private async getSecretKey(appId: string, namespace: string, version?: number) {
+    return this.keyService.getRotateKey({
+      type: APP_CONSTANTS.FORMATS.keyType.config(appId, namespace),
+      options: {
+        version,
+        renewOnExpire: true,
+        bytes: randNumber({ from: 32, to: 64, decimal: 0 }),
+        onGenerateDuration: {
+          amount: 60,
+          unit: 'seconds',
+        },
+      },
+    });
+  }
+
+  public static safeConfig(config: TConfigRecords) {
     return {
       ...APP_CONSTANTS.DEFAULT_CONFIGS,
       ...config,
-    } as Record<string, any>;
+    } as TConfigRecords;
   }
 
-  private async equalCheck(appCode: string, appNamespace: string, configs: Record<string, any>) {
+  private async equalCheck(appCode: string, appNamespace: string, configs: TConfigRecords) {
     const currentConfig = await this.configRepository.findOne({
       where: { app: { code: appCode }, namespace: appNamespace, isUse: true },
     });
 
-    if (!currentConfig) return true;
+    if (!currentConfig) return false;
 
-    return deepCompare(this.decodeConfig(currentConfig).configs, ConfigService.safeConfig(configs));
+    const { expiredKey, key } = await this.getSecretKey(
+      currentConfig.appId,
+      currentConfig.namespace,
+      ConfigService.getSecretKeyVersion(currentConfig.configs)
+    );
+
+    return deepCompare(
+      this.decodeConfig(currentConfig, valueOrDefault(expiredKey?.originKey, key)).configs,
+      ConfigService.safeConfig(configs)
+    );
   }
 
   private async checkNonActive(appId: string, namespace: string, excludeIds: string[]) {
@@ -340,17 +370,16 @@ export class ConfigService {
     configs: IConfig[],
     cache: TConfigUseCache,
     ...extKeys: Array<string | number>
-  ): Promise<TConfigDecoded[]> {
+  ) {
     const cacheKey = this.getCacheKey(cache, ...extKeys);
 
     if (typeof configs !== 'object' || !Array.isArray(configs)) {
       return [];
     }
 
-    const decoded = configs.map(this.decodeConfig);
+    await this.cacheService.set(cacheKey, configs);
 
-    await this.cacheService.set(cacheKey, decoded);
-    return decoded;
+    return configs;
   }
 
   private async cache(
@@ -359,7 +388,13 @@ export class ConfigService {
     ...extKeys: Array<string | number>
   ): Promise<TConfigDecoded> {
     const cacheKey = this.getCacheKey(cache, ...extKeys);
-    const result = this.decodeConfig(config);
+    const { key, expiredKey } = await this.getSecretKey(
+      config.appId,
+      config.namespace,
+      ConfigService.getSecretKeyVersion(config.configs)
+    );
+
+    const result = this.decodeConfig(config, valueOrDefault(expiredKey?.originKey, key));
 
     if (config.isUse) await this.cacheService.set(cacheKey, result);
     else if (!config.isUse || !!config.deletedAt) await this.cacheService.delete(cacheKey);
@@ -367,26 +402,39 @@ export class ConfigService {
     return result;
   }
 
-  private decodeConfig(config: IConfig) {
+  private decodeConfig(config: IConfig, key: string) {
     return {
       ...config,
-      ...(config.configs ? { configs: ConfigService.decryptConfig(config.configs) } : {}),
+      ...(config.configs
+        ? {
+            configs: ConfigService.decryptConfig(
+              ConfigService.getHashedTokenConfig(config.configs),
+              key
+            ),
+          }
+        : {}),
     } as TConfigDecoded;
   }
 
   private async triggerWebhookOnChange(
     data: IConfig,
     appCode: string,
-    appId: string,
     triggerType: EWebhookTriggerType
   ) {
-    // push to queue job
-    // await this.webhookService.trigger({
-    //   appCode: appCode,
-    //   appId: appId,
-    //   data: excludeFields(this.decodeConfig(data), ['app', 'deletedAt']),
-    //   triggerOn: EWebhookTriggerOn.CONFIG,
-    //   triggerType,
-    // });
+    const { key, expiredKey } = await this.getSecretKey(
+      data.appId,
+      data.namespace,
+      ConfigService.getSecretKeyVersion(data.configs)
+    );
+
+    const decodedConfig = this.decodeConfig(data, valueOrDefault(expiredKey?.originKey, key));
+
+    await this.queueService.addQueue(QUEUE_CONSTANTS.NAME.WEBHOOK_ON_CHANGE_CONFIG_TRIGGER, {
+      appCode: appCode,
+      appId: data.appId,
+      data: excludeFields(decodedConfig, ['app', 'deletedAt']),
+      triggerOn: EWebhookTriggerOn.CONFIG,
+      triggerType,
+    });
   }
 }

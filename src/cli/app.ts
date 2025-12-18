@@ -83,22 +83,6 @@ const Commands = (appService: AppService): ICliCommand[] => [
       process.exit(1);
     },
   },
-  {
-    name: 'migrate',
-    description: 'Apply saves configs to new configs',
-    action: async () => {
-      const migrate = await appService.migrationConfig();
-
-      printAppTable(migrate, [
-        ['id', 'Id'],
-        ['namespace', 'Enviroment'],
-        ['version', 'Version'],
-        ['isUse', 'Is Using'],
-      ]);
-
-      process.exit(1);
-    },
-  },
 ];
 
 export const registerAppCommands = (program: Command) => {

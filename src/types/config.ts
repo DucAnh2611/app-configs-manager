@@ -1,7 +1,18 @@
 import { IConfig } from './entity';
 
+export type TConfigBaseRecordData =
+  | Array<string | number | TConfigRecords | boolean>
+  | string
+  | number
+  | TConfigRecords
+  | boolean;
+
+export type TConfigRecords = {
+  [x: string]: TConfigBaseRecordData;
+};
+
 export type TConfigDecoded = Omit<IConfig, 'configs'> & {
-  configs: Record<string, any>;
+  configs: TConfigRecords;
 };
 
 export type TConfigServiceHistory = TConfigUseCache & {
@@ -12,7 +23,7 @@ export type TConfigServiceGet = TConfigUseCache & {};
 
 export type TConfigServiceUp = TConfigUseCache & {
   appId: string;
-  configs: Record<string, any>;
+  configs: TConfigRecords;
 };
 
 export type TConfigServiceToggleUse = TConfigUseCache & {
@@ -32,7 +43,7 @@ export type TConfigServiceRemove = TConfigUseCache & {
 
 export type TConfigServiceBulkUp = {
   appId: string;
-  configs: Record<string, any>;
+  configs: TConfigRecords;
   namespace: string;
   isUse: boolean;
   version: number;

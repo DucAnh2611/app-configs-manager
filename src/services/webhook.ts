@@ -1,5 +1,5 @@
-import { ManipulateType } from 'dayjs';
-import { EErrorCode, EResponseStatus } from '../enums';
+import { APP_CONSTANTS } from '../constants';
+import { EErrorCode, EKeyBytesMode, EResponseStatus } from '../enums';
 import {
   EWebhookBodyType,
   EWebhookMethod,
@@ -7,14 +7,12 @@ import {
   EWebhookTriggerType,
 } from '../enums/webhook';
 import {
-  bindStringFormat,
   CacheKeyGenerator,
   decrypt,
   encrypt,
   Exception,
   excludeFields,
   promiseAll,
-  randNumber,
   valueOrDefault,
 } from '../helpers';
 import { WebhookRepository } from '../repositories';
@@ -27,6 +25,7 @@ import {
   TWebhookServiceTrigger,
   TWebhookServiceUpdate,
 } from '../types';
+import { ConfigExtractorTransform } from '../utils';
 import { CacheService } from './cache';
 import { ConfigService } from './config';
 import { KeyService } from './key';
@@ -235,8 +234,8 @@ export class WebhookService {
   }
 
   private refreshAuthKey(keyId: string, authKey: string, code: string, namespace: string) {
-    return async (expiredKey: string, bytes: number) => {
-      const decrypted = decrypt<string>(authKey, expiredKey, bytes);
+    return async (expiredKey: string) => {
+      const decrypted = decrypt<string>(authKey, expiredKey);
 
       const encrypted = await this.encryptAuthKey(decrypted, code, namespace);
 
@@ -252,16 +251,38 @@ export class WebhookService {
   }
 
   private async getHashConfig(code: string, namespace: string) {
-    const systemConfig = await this.configService.getSystemConfig();
+    const systemConfig = await this.configService
+      .getSystemConfig({
+        WEBHOOK_KEY_DURATION_AMOUNT: 'number',
+        WEBHOOK_KEY_DURATION_UNIT: 'dateUnit',
+        WEBHOOK_KEY_BYTES_MODE: ConfigExtractorTransform.enum(EKeyBytesMode),
+        WEBHOOK_KEY_BYTES_FIXED: 'number',
+        WEBHOOK_KEY_BYTES_RAND_FROM: 'number',
+        WEBHOOK_KEY_BYTES_RAND_TO: 'number',
+        WEBHOOK_KEY_BYTES_RAND_DECIMAL: 'number',
+      })
+      .allowNull([]);
+
+    if (systemConfig.WEBHOOK_KEY_DURATION_AMOUNT < 1) {
+      throw new Exception(EResponseStatus.InternalServerError, EErrorCode.CONFIG_PROPERTY_INVALID, {
+        WEBHOOK_KEY_DURATION_AMOUNT: systemConfig.WEBHOOK_KEY_DURATION_AMOUNT,
+      });
+    }
 
     return this.keyService.getRotateKey({
-      type: bindStringFormat('{type}_{code}_{namespace}', { type: 'auth-key', code, namespace }),
+      type: APP_CONSTANTS.FORMATS.keyType.webhook('auth-key', code, namespace),
       options: {
         renewOnExpire: true,
-        bytes: randNumber({ from: 32, to: 64, decimal: 0 }),
+        bytes: KeyService.getBytes(
+          systemConfig.WEBHOOK_KEY_BYTES_MODE,
+          systemConfig.WEBHOOK_KEY_BYTES_FIXED,
+          systemConfig.WEBHOOK_KEY_BYTES_RAND_FROM,
+          systemConfig.WEBHOOK_KEY_BYTES_RAND_TO,
+          systemConfig.WEBHOOK_KEY_BYTES_RAND_DECIMAL
+        ),
         onGenerateDuration: {
           amount: systemConfig.WEBHOOK_KEY_DURATION_AMOUNT,
-          unit: systemConfig.WEBHOOK_KEY_DURATION_UNIT as ManipulateType,
+          unit: systemConfig.WEBHOOK_KEY_DURATION_UNIT,
         },
       },
     });
@@ -284,7 +305,7 @@ export class WebhookService {
 
     // When expired key -> decrypt the expiredKey
     const decryptKey = valueOrDefault<string>(expiredKey?.originKey, key);
-    const decrypted = decrypt<string>(authKey, decryptKey, hashBytes);
+    const decrypted = decrypt<string>(authKey, decryptKey);
 
     if (expiredKey && onExpired) await onExpired(expiredKey.originKey, hashBytes);
 

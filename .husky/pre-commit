@@ -1,4 +1,8 @@
+echo "=== Type check  ==="
 npm run typecheck || exit 1
+
+echo "=== Format EErrorCode  ==="
+npm run enum:convert:error-response
 
 export RUN_FULL_TEST=true
 echo "set RUN_FULL_TEST=TRUE"

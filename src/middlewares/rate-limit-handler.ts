@@ -9,19 +9,22 @@ export const rateLimitHandler = () => async (req: TRequest, _res: Response, next
   const redis = getRedis();
   const { configService } = getServices();
 
-  const systemConfig = await configService.getSystemConfig();
+  const systemConfig = await configService
+    .getSystemConfig({
+      RATE_LIMIT_DURATION: 'number',
+      RATE_LIMIT_REQUEST: 'number',
+    })
+    .allowNull([]);
 
-  const { RATE_LIMIT_DURATION, RATE_LIMIT_REQUEST } = systemConfig;
-
-  if (RATE_LIMIT_DURATION < 1 || RATE_LIMIT_REQUEST < 1) {
+  if (systemConfig.RATE_LIMIT_DURATION < 1 || systemConfig.RATE_LIMIT_REQUEST < 1) {
     throw new Exception(EResponseStatus.BadRequest, EErrorCode.RATE_LIMIT_CONFIG_NOT_VALID);
   }
 
   const rate = await rateLimit(
     redis,
     req.ip || req.hostname,
-    RATE_LIMIT_REQUEST,
-    RATE_LIMIT_DURATION
+    systemConfig.RATE_LIMIT_REQUEST,
+    systemConfig.RATE_LIMIT_DURATION
   );
 
   if (!rate.allowed) {

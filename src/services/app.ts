@@ -2,7 +2,7 @@ import { In } from 'typeorm';
 import { EErrorCode, EResponseStatus } from '../enums';
 import { CacheKeyGenerator, Exception, promiseAll } from '../helpers';
 import { AppRepository } from '../repositories';
-import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate, IApp, IConfig } from '../types';
+import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate } from '../types';
 import { CacheService } from './cache';
 import { ConfigService } from './config';
 
@@ -12,51 +12,6 @@ export class AppService {
     private readonly cacheService: CacheService,
     private readonly configService: ConfigService
   ) {}
-
-  public async migrationConfig() {
-    let page = 1;
-    const take = 10;
-
-    const countApps = await this.appRepository
-      .createQueryBuilder('app')
-      .leftJoin('app.vConfigs', 'vConfig')
-      .where('app.deletedAt IS NULL')
-      .andWhere((qb) => {
-        const subQuery = qb.subQuery().select('vConfig.appId').from('configs', 'vConfig');
-        return 'app.id NOT IN ' + subQuery.getQuery();
-      })
-      .getCount();
-
-    const totalPages = Math.ceil(countApps / take);
-
-    const configs: IConfig[] = [];
-
-    while (page <= totalPages) {
-      const migrated = await this.partialMigrateConfig(page, take);
-      configs.push(...migrated);
-
-      page++;
-    }
-
-    return configs;
-  }
-
-  public async partialMigrateConfig(page: number, take: number) {
-    const apps: IApp[] = await this.appRepository
-      .createQueryBuilder('app')
-      .select('app.*')
-      .leftJoin('app.vConfigs', 'vConfig')
-      .where('app.deletedAt IS NULL')
-      .andWhere((qb) => {
-        const subQuery = qb.subQuery().select('vConfig.appId').from('configs', 'vConfig');
-        return 'app.id NOT IN ' + subQuery.getQuery();
-      })
-      .take(take)
-      .skip((page - 1) * take)
-      .execute();
-
-    return this.configService.migrate(apps);
-  }
 
   public async find() {
     const cacheKey = CacheKeyGenerator.appList();
@@ -108,7 +63,7 @@ export class AppService {
     const { code, name } = dto;
 
     const saved = await this.appRepository.save({
-      code: this.safeCode(code),
+      code: AppService.safeCode(code),
       name,
     });
 
@@ -141,7 +96,7 @@ export class AppService {
         id,
       },
       {
-        code: this.safeCode(code),
+        code: AppService.safeCode(code),
         name,
       }
     );
@@ -173,7 +128,7 @@ export class AppService {
 
   public getByCode(code: string) {
     return this.appRepository.findOneBy({
-      code: code,
+      code: AppService.safeCode(code),
     });
   }
 
@@ -181,7 +136,7 @@ export class AppService {
     return this.appRepository.findOneBy({ id });
   }
 
-  private safeCode(code: string) {
+  public static safeCode(code: string) {
     return code.replace(new RegExp(' '), '_').toUpperCase().trim();
   }
 }

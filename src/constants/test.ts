@@ -4,19 +4,32 @@ export const TEST_CONSTANTS = {
     inf: 'test-key-inf',
   },
   run: {
+    helpers: {
+      crypto: { e: false, 'e+d': true },
+    },
+    configService: {
+      get: {
+        o: false,
+        a: false,
+      },
+      up: {
+        o: true,
+        b: false,
+      },
+    },
     keyService: {
       generate: {
-        rk: true,
-        ik: true,
-        rkmd: true,
+        rk: false,
+        ik: false,
+        rkmd: false,
       },
       getRotateKey: {
-        ne: true,
+        ne: false,
         'e-kfne': false,
-        'e-kfe-vt': true,
-        'e-kfe-e': true,
-        'e-kfe-e-r': true,
-        'e-kfe-ns': true,
+        'e-kfe-vt': false,
+        'e-kfe-e': false,
+        'e-kfe-e-r': false,
+        'e-kfe-ns': false,
       },
     },
   },

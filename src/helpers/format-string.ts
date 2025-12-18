@@ -9,13 +9,17 @@ export const splitString = (str: string, splitBy = '') => {
   return str.split(splitBy);
 };
 
-export const bindStringFormat = (format: string, data: Object) => {
+export const bindStringFormat = (format: string, data: Object, replacePairs?: string[]) => {
   let result = format;
+  const [find = '_', replacement = '-'] = replacePairs ?? [];
 
   for (const [key, value] of Object.entries(data)) {
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    result = result.replace(new RegExp(`{${escapedKey}}`, 'g'), String(value));
+    result = result.replace(
+      new RegExp(`{${escapedKey}}`, 'g'),
+      String(value).replace(new RegExp(find, 'g'), replacement).replace(new RegExp(' ', 'g'), '')
+    );
   }
 
   return result;

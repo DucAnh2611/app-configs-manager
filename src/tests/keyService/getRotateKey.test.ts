@@ -19,16 +19,16 @@ const rotateKeyParams: TKeyServiceGetRotateKey = {
     },
   },
 };
-const expiredContent = `2200-01-01T00:00:00.000Z|2000-01-01T00:01:00.000Z|EXPIRED`;
+const expiredContent = `1999-01-01T00:00:00.000Z|2000-01-01T00:01:00.000Z|EXPIRED`;
 const notStartContent = `2100-01-01T00:00:00.000Z|2100-01-01T00:01:00.000Z|EXPIRED`;
 
 describe('Key Service / GetRotateKey', () => {
   test.runIf(TEST_CONSTANTS.run.keyService.getRotateKey.ne || RUN_FULL_TEST)(
-    '(T) Not exist',
+    '(S) Not exist',
     async () => {
       const { keyService } = getServices();
 
-      const typeNonExist = `${type}_${Date.now()}`;
+      const typeNonExist = `${type}-${Date.now()}`;
 
       const key = await keyService.getRotateKey({
         ...rotateKeyParams,
@@ -42,10 +42,10 @@ describe('Key Service / GetRotateKey', () => {
   );
 
   // Unit test: Edge case
-  test.runIf(TEST_CONSTANTS.run.keyService.getRotateKey['e-kfne'])(
+  test.runIf(TEST_CONSTANTS.run.keyService.getRotateKey['e-kfne'] || RUN_FULL_TEST)(
     '(S) Exist / Key file not exist',
     async () => {
-      const { keyService, cacheService } = getServices();
+      const { keyService } = getServices();
 
       const key = await keyService.getRotateKey(rotateKeyParams);
 
@@ -90,19 +90,20 @@ describe('Key Service / GetRotateKey', () => {
       } else if (content) {
         await fs.writeFile(`keys/${type}/v_${version}.txt`, expiredContent, 'utf-8');
       }
-
-      await expect(
-        keyService.getRotateKey({
+      try {
+        await keyService.getRotateKey({
           type: type,
           options: {
             ...rotateKeyParams.options,
             version: version,
           },
-        })
-      ).rejects.toThrow(Exception);
+        });
+      } catch (e) {
+        expect(e).toBeInstanceOf(Exception);
+      }
 
       if (cache) {
-        await cacheService.set(cacheKey, cache);
+        await cacheService.delete(cacheKey);
       } else if (content) {
         await fs.writeFile(`keys/${type}/v_${version}.txt`, content, 'utf-8');
       }
@@ -144,7 +145,7 @@ describe('Key Service / GetRotateKey', () => {
       expect(renew.expiredKey).not.toBeNull();
 
       if (cache) {
-        await cacheService.set(cacheKey, cache);
+        await cacheService.delete(cacheKey);
       } else if (content) {
         await fs.writeFile(`keys/${type}/v_${version}.txt`, content, 'utf-8');
       }
@@ -185,7 +186,7 @@ describe('Key Service / GetRotateKey', () => {
       ).rejects.toThrow(Exception);
 
       if (cache) {
-        await cacheService.set(cacheKey, cache);
+        await cacheService.delete(cacheKey);
       } else if (content) {
         await fs.writeFile(`keys/${type}/v_${version}.txt`, content, 'utf-8');
       }

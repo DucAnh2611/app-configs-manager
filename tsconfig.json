@@ -25,7 +25,8 @@
     "emitDecoratorMetadata": true,
     "strictPropertyInitialization": false,
     "types": [
-      "vitest"
+      "vitest",
+      "node"
     ]
   },
   "include": [

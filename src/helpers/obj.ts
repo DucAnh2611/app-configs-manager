@@ -107,3 +107,48 @@ export const deepCompare = (
 
   return true;
 };
+
+export const attachField = (
+  baseObj: Record<string, unknown>,
+  ...attaches: Array<{ when: boolean; [x: string]: unknown }>
+) => {
+  const res = { ...baseObj };
+
+  for (const attach of attaches) {
+    const { when, ...attachData } = attach;
+    if (!when) continue;
+
+    Object.assign(res, attachData);
+  }
+
+  return res;
+};
+
+type TAttachHandler = (...args: any[]) => unknown | Promise<unknown>;
+type TAttachConfig = Record<string, TAttachHandler>;
+
+type TAttachedMethods<TAttach extends TAttachConfig> = {
+  [K in keyof TAttach]: (...args: Parameters<TAttach[K]>) => ReturnType<TAttach[K]>;
+};
+
+/**
+ *
+ * @param attach methods need to be attach
+ * @param data default is {}
+ * @returns object have attribute of data and attached methods
+ */
+export const attachMethods = <TData extends Record<string, unknown>, TAttach extends TAttachConfig>(
+  data: TData,
+  attach: (context: { data: Readonly<TData> }) => TAttach
+) => {
+  const attachObject = attach({ data });
+
+  const attachedMethods = Object.entries(attachObject).reduce((acc, [key, handler]) => {
+    acc[key as keyof TAttach] = (...args: Parameters<typeof handler>) => {
+      return handler(...args) as any;
+    };
+    return acc;
+  }, {} as TAttachedMethods<TAttach>);
+
+  return { ...data, ...attachedMethods } as TData & TAttachedMethods<TAttach>;
+};
