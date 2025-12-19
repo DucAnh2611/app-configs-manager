@@ -26,6 +26,8 @@
     "app": "npm run cli --",
     "test": "vitest --run",
     "test:watch": "vitest --watch",
+    "test:all": "set RUN_FULL_TEST=TRUE && vitest --run",
+    "test:all:watch": "set RUN_FULL_TEST=TRUE && vitest --watch",
     "clean": "rimraf dist"
   },
   "lint-staged": {

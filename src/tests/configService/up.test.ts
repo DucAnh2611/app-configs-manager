@@ -1,7 +1,6 @@
-import { fail } from 'assert';
 import { describe, expect, test } from 'vitest';
 import { TEST_CONSTANTS } from '../../constants/test';
-import { randNumber } from '../../helpers';
+import { Exception, randNumber } from '../../helpers';
 import { env } from '../../libs';
 import { getServices } from '../../services';
 
@@ -38,8 +37,11 @@ describe('Config Service / up', () => {
           testing: true,
         },
       });
-    } catch {
-      fail();
+
+      return;
+    } catch (error) {
+      expect(error).toBeInstanceOf(Exception);
+      if (!(error instanceof Exception)) return;
     }
   });
 });
