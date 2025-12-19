@@ -51,4 +51,9 @@ export const AppEntity = new EntitySchema<IApp>({
       cascade: true,
     },
   },
+  indices: [
+    { columns: ['code'], unique: true, where: '"apps"."deletedAt" IS NULL' },
+    { columns: ['id', 'code'], where: '"apps"."deletedAt" IS NULL' },
+    { columns: ['deletedAt'], where: '"apps"."deletedAt" IS NULL' },
+  ],
 });

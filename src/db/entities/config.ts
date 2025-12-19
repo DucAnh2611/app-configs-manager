@@ -51,4 +51,9 @@ export const ConfigEntity = new EntitySchema<IConfig>({
       onDelete: 'CASCADE',
     },
   },
+  indices: [
+    { columns: ['appId', 'namespace', 'version', 'isUse'], where: '"configs"."deletedAt" IS NULL' },
+    { columns: ['namespace', 'version', 'isUse'], where: '"configs"."deletedAt" IS NULL' },
+    { columns: ['deletedAt'], where: '"configs"."deletedAt" IS NULL' },
+  ],
 });

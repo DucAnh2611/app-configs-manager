@@ -53,4 +53,11 @@ export const WebhookHistoryEntity = new EntitySchema<IWebhookHistory>({
       onDelete: 'CASCADE',
     },
   },
+  indices: [
+    { columns: ['webhookId', 'status'] },
+    {
+      columns: ['webhookId', 'isSuccess'],
+      where: `"webhook_histories"."status" != '${EWebhookHistoryStatus.IN_QUEUE}'`,
+    },
+  ],
 });

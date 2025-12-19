@@ -69,4 +69,20 @@ export const KeyEntity = new EntitySchema<IKey>({
       target: DB_TABLES_CONSTANTS.API_KEY.NAME,
     },
   },
+  indices: [
+    {
+      columns: ['id'],
+      unique: true,
+      where: `"keys"."deletedAt" IS NULL`,
+    },
+    {
+      columns: ['type', 'status'],
+      where: `"keys"."deletedAt" IS NULL AND "keys"."status" != '${EKeyStatus.RETIRED}'`,
+    },
+    {
+      columns: ['type', 'version'],
+      where: `"keys"."deletedAt" IS NULL AND "keys"."status" != '${EKeyStatus.RETIRED}'`,
+    },
+    { columns: ['deletedAt'], where: '"keys"."deletedAt" IS NULL' },
+  ],
 });

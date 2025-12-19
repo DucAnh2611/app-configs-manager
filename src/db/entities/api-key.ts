@@ -73,4 +73,11 @@ export const ApiKeyEntity = new EntitySchema<IApiKey>({
       onDelete: 'CASCADE',
     },
   },
+  indices: [
+    { columns: ['publicKey'], unique: true, where: '"api_key"."deletedAt" IS NULL' },
+    { columns: ['appId', 'publicKey'], where: '"api_key"."deletedAt" IS NULL' },
+    { columns: ['appId', 'active', 'type'], where: '"api_key"."deletedAt" IS NULL' },
+    { columns: ['keyId'], where: '"api_key"."deletedAt" IS NULL' },
+    { columns: ['deletedAt'], where: '"api_key"."deletedAt" IS NULL' },
+  ],
 });

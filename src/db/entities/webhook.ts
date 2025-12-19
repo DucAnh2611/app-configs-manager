@@ -82,4 +82,12 @@ export const WebhookEntity = new EntitySchema<IWebhook>({
       cascade: true,
     },
   },
+  indices: [
+    {
+      columns: ['appId', 'triggerType', 'triggerOn'],
+      where: '"webhooks"."deletedAt" IS NULL AND "webhooks"."isActive" = TRUE',
+    },
+    { columns: ['triggerType', 'triggerOn', 'isActive'], where: '"webhooks"."deletedAt" IS NULL' },
+    { columns: ['deletedAt'], where: '"webhooks"."deletedAt" IS NULL' },
+  ],
 });
