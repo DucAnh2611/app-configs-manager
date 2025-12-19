@@ -1,36 +1,40 @@
 {
   "compilerOptions": {
     /* Language and Environment */
-    "target": "es2020",                       // Modern JS for Node.js 16+
-    "module": "commonjs",                     // Node.js module system
-
+    "target": "es2020", // Modern JS for Node.js 16+
+    "module": "commonjs", // Node.js module system
     /* Paths */
-    "rootDir": "src",                         // Your source code folder
-    "outDir": "dist",                         // Output after compilation
-
+    "rootDir": "src", // Your source code folder
+    "outDir": "dist", // Output after compilation
     /* Strictness */
-    "strict": true,                           // Enable all strict checks
-    "noImplicitAny": true,                    // Avoid "any" types
-    "strictNullChecks": true,                 // Handle null/undefined properly
-
+    "strict": true, // Enable all strict checks
+    "noImplicitAny": true, // Avoid "any" types
+    "strictNullChecks": true, // Handle null/undefined properly
     /* Module Resolution */
-    "esModuleInterop": true,                  // Import CommonJS modules
-    "moduleResolution": "node",               // Node-style module resolution
-    "resolveJsonModule": true,                // Allow importing .json
+    "esModuleInterop": true, // Import CommonJS modules
+    "moduleResolution": "node", // Node-style module resolution
+    "resolveJsonModule": true, // Allow importing .json
     "allowSyntheticDefaultImports": true,
-
     /* Source Maps */
-    "sourceMap": true,                        // Generate .map files
-    "removeComments": true,                   // Remove comments from output
-
+    "sourceMap": true, // Generate .map files
+    "removeComments": true, // Remove comments from output
     /* Type Checking */
-    "skipLibCheck": true,                     // Skip type checks in node_modules
+    "skipLibCheck": true, // Skip type checks in node_modules
     "forceConsistentCasingInFileNames": true, // Prevent case mismatches
-
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "strictPropertyInitialization": false,
+    "types": [
+      "vitest",
+      "node"
+    ]
   },
-  "include": ["src"],                         // Compile only your source code
-  "exclude": ["node_modules", "dist", "tests/**/*.spec.ts"] // Ignore build + test files
+  "include": [
+    "src"
+  ], // Compile only your source code
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests/**/*.spec.ts"
+  ] // Ignore build + test files
 }

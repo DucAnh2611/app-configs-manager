@@ -1,55 +1,52 @@
 import { Like } from 'typeorm';
-import { IApiKey } from '../db';
-import { formatString, generateBytes, hash, signJwt, verify, verifyJwt } from '../helpers';
+import { APP_CONSTANTS } from '../constants';
+import { EErrorCode, EResponseStatus } from '../enums';
+import { Exception, generateBytes } from '../helpers';
+import { CacheKeyGenerator } from '../helpers/cache';
+import { ApiKeyRepository } from '../repositories';
 import {
-  DtoApiKeyCheckKeyType,
   DtoApiKeyGenerate,
   DtoApiKeyList,
   DtoApiKeyReset,
   DtoApiKeyToggle,
   DtoApiKeyUpdate,
-  DtoApiKeyValidate,
-  TJwtApiKeyPayload,
+  IApiKey,
+  TApiKeyServiceCheck,
 } from '../types';
 import { AppService } from './app';
-import { ApiKeyRepository } from '../repositories';
-import { EApiKeyType, EAppConfigsUpdateType } from '../enums';
+import { CacheService } from './cache';
+import { ConfigService } from './config';
+import { KeyService } from './key';
 
 export class ApiKeyService {
   constructor(
     private readonly apiKeyRepository: ApiKeyRepository,
-    private readonly appService: AppService
+    private readonly appService: AppService,
+    private readonly keyService: KeyService,
+    private readonly cacheService: CacheService,
+    private readonly configService: ConfigService
   ) {}
 
-  public async validate(dto: DtoApiKeyValidate) {
-    const apiKeys = await this.apiKeyRepository.find({
+  public async validate(dto: TApiKeyServiceCheck) {
+    const apiKey = await this.apiKeyRepository.findOne({
       where: {
-        app: {
-          code: dto.appCode,
-        },
+        publicKey: dto.publicKey,
         type: dto.type,
         active: true,
       },
     });
 
-    for (const apiKey of apiKeys) {
-      if (verify(dto.apiKey, apiKey.key)) {
-        return true;
-      }
-    }
+    if (!apiKey) throw new Exception(EResponseStatus.NotFound, EErrorCode.KEY_NOT_EXIST);
 
-    return false;
+    return this.keyService.verify(apiKey.keyId);
   }
 
   public async toggle(dto: DtoApiKeyToggle) {
     const apiKey = await this.getById(dto.id);
-    if (!apiKey) {
-      throw new Error('ApiKey not exist!');
-    }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
-      throw new Error('App not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     const updateApiKey: Partial<IApiKey> = {};
@@ -57,7 +54,7 @@ export class ApiKeyService {
     updateApiKey.active = !apiKey.active;
     updateApiKey.revokedAt = updateApiKey.active ? null : new Date();
 
-    const toggled = await this.apiKeyRepository.update(
+    await this.apiKeyRepository.update(
       {
         id: dto.id,
         appId: app.id,
@@ -65,50 +62,64 @@ export class ApiKeyService {
       updateApiKey
     );
 
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
+
     return { ...dto, type: apiKey.type, active: updateApiKey.active };
   }
 
-  public async generate(dto: DtoApiKeyGenerate): Promise<IApiKey & { formattedKey: string }> {
+  public async generate(dto: DtoApiKeyGenerate) {
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
-      throw new Error('App not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
-    const key = generateBytes(Number(dto.length));
+    const systemConfig = await this.configService
+      .getSystemConfig({
+        API_KEY_GENERATE_DURATION_AMOUNT: 'number',
+        API_KEY_GENERATE_DURATION_UNIT: 'dateUnit',
+      })
+      .allowNull([]);
 
-    const { PUBLIC_KEY_LENGTH = null, JWT_SECRET_API_KEY } = await this.appService.getConfigs({
-      code: dto.code,
+    const { keyId } = await this.keyService.getRotateKey({
+      type: this.keyTypeString(dto.code, dto.namespace, dto.type),
+      options: {
+        bytes: dto.length,
+        onGenerateDuration: {
+          amount: systemConfig.API_KEY_GENERATE_DURATION_AMOUNT,
+          unit: systemConfig.API_KEY_GENERATE_DURATION_UNIT,
+        },
+      },
     });
 
-    if (dto.type === EApiKeyType.THIRD_PARTY && !PUBLIC_KEY_LENGTH) {
-      throw new Error("Public key length haven't configured!");
+    if (!dto.publicKeyLength) {
+      throw new Exception(
+        EResponseStatus.BadRequest,
+        EErrorCode.PUBLIC_KEY_LENGTH_IS_NOT_CONFIGURATED
+      );
     }
 
-    const saved = await this.apiKeyRepository.save({
+    const apiKeyInstance = this.apiKeyRepository.create({
       appId: app.id,
-      key: hash(key, Number(dto.length)),
-      publicKey:
-        dto.type === EApiKeyType.THIRD_PARTY ? generateBytes(Number(PUBLIC_KEY_LENGTH)) : null,
+      keyId,
+      publicKey: generateBytes(dto.publicKeyLength),
       description: dto.description,
       type: dto.type,
       active: true,
     });
 
-    return {
-      ...saved,
-      formattedKey: signJwt<TJwtApiKeyPayload>(
-        {
-          appCode: app.code,
-          key: key,
-          type: dto.type,
-        },
-        JWT_SECRET_API_KEY
-      ),
-    };
+    const saved = await this.apiKeyRepository.save(apiKeyInstance);
+
+    return saved;
   }
 
   public async list(dto: DtoApiKeyList) {
-    return this.apiKeyRepository.find({
+    const cacheKey = CacheKeyGenerator.apiKeyList(dto.code);
+    const cached = await this.cacheService.get<IApiKey[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.apiKeyRepository.find({
       where: {
         app: {
           code: Like(`%${dto.code}%`),
@@ -118,59 +129,50 @@ export class ApiKeyService {
         type: 'ASC',
       },
     });
+
+    await this.cacheService.set(cacheKey, result, 300);
+    return result;
   }
 
   public async reset(dto: DtoApiKeyReset) {
     const apiKey = await this.getById(dto.id);
-    if (!apiKey) {
-      throw new Error('ApiKey not exist!');
-    }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
-      throw new Error('App not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
-    const key = generateBytes(Number(dto.length));
-
-    const { JWT_SECRET_API_KEY } = await this.appService.getConfigs({
-      code: dto.code,
+    const { keyId } = await this.keyService.generate({
+      type: this.keyTypeString(dto.code, dto.namespace, apiKey.type),
+      useRotate: true,
+      bytes: dto.length,
     });
 
     await this.apiKeyRepository.update(
       { id: dto.id },
       {
-        key: hash(key, Number(dto.length)),
+        keyId,
         active: true,
       }
     );
 
-    return {
-      ...apiKey,
-      formattedKey: signJwt<TJwtApiKeyPayload>(
-        {
-          appCode: app.code,
-          key: key,
-          type: apiKey.type,
-        },
-        JWT_SECRET_API_KEY
-      ),
-    };
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
+
+    return { ...apiKey, keyId };
   }
 
   public async update(dto: DtoApiKeyUpdate) {
     const apiKey = await this.getById(dto.id);
-    if (!apiKey) {
-      throw new Error('ApiKey not exist!');
-    }
 
     const app = await this.appService.getByCode(dto.code);
     if (!app) {
-      throw new Error('App not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     if (dto.isDelete) {
       await this.apiKeyRepository.softDelete({ id: dto.id });
+
+      await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
       return true;
     }
 
@@ -180,42 +182,25 @@ export class ApiKeyService {
     };
 
     await this.apiKeyRepository.update({ id: dto.id }, updateData);
+
+    await this.cacheService.delete(CacheKeyGenerator.apiKeyList(dto.code));
     return true;
   }
 
   public async getById(id: string) {
-    return this.apiKeyRepository.findOneBy({ id });
+    const apiKey = await this.apiKeyRepository.findOneBy({ id });
+    if (!apiKey) {
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APIKEY_NOT_EXIST);
+    }
+
+    return apiKey;
   }
 
   public async getByApp(appId: string) {
     return this.apiKeyRepository.find({ where: { appId } });
   }
 
-  public async checkKeyType(dto: DtoApiKeyCheckKeyType) {
-    const apiKeys = await this.apiKeyRepository.find({
-      where: {
-        type: dto.type,
-        app: {
-          code: dto.appCode,
-        },
-        active: true,
-      },
-    });
-
-    for (const apiKey of apiKeys) {
-      if (verify(dto.key, apiKey.key)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  public async extractPayload(token: string, code: string): Promise<TJwtApiKeyPayload | null> {
-    const { JWT_SECRET_API_KEY } = await this.appService.getConfigs({
-      code: code,
-    });
-
-    return verifyJwt<TJwtApiKeyPayload>(token, JWT_SECRET_API_KEY);
+  private keyTypeString(code: string, namespace: string, type: string) {
+    return APP_CONSTANTS.FORMATS.keyType.apiKey(code, namespace, type);
   }
 }

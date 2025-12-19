@@ -1,31 +1,30 @@
 import {
   IsBoolean,
   IsEnum,
+  IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
-  MinLength,
+  Max,
+  Min,
 } from 'class-validator';
 import { EApiKeyType } from '../../enums';
 
 export class DtoApiKeyValidate {
   @IsNotEmpty()
   @IsString()
-  apiKey: string;
+  publicKey: string;
 
   @IsNotEmpty()
   @IsEnum(EApiKeyType)
   type: EApiKeyType;
-
-  @IsNotEmpty()
-  @IsString()
-  appCode: string;
 }
 
 export class DtoApiKeyToggle {
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   code: string;
 
   @IsNotEmpty()
@@ -35,13 +34,21 @@ export class DtoApiKeyToggle {
 
 export class DtoApiKeyGenerate {
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   code: string;
 
   @IsNotEmpty()
-  @IsString()
-  @MinLength(8)
-  length: string;
+  @IsNumber()
+  @IsInt()
+  @Max(128)
+  @Min(0)
+  length: number;
+
+  @IsNumber()
+  @IsInt()
+  @Max(128)
+  @Min(0)
+  publicKeyLength: number;
 
   @IsNotEmpty()
   @IsEnum(EApiKeyType)
@@ -50,6 +57,10 @@ export class DtoApiKeyGenerate {
   @IsNotEmpty()
   @IsString()
   description: string;
+
+  @IsNotEmpty()
+  @IsString()
+  namespace: string;
 }
 
 export class DtoApiKeyList {
@@ -68,9 +79,15 @@ export class DtoApiKeyReset {
   id: string;
 
   @IsNotEmpty()
+  @IsNumber()
+  @IsInt()
+  @Max(128)
+  @Min(0)
+  length: number;
+
+  @IsNotEmpty()
   @IsString()
-  @MinLength(8)
-  length: string;
+  namespace: string;
 }
 
 export class DtoApiKeyCheckKeyType {
@@ -84,7 +101,7 @@ export class DtoApiKeyCheckKeyType {
 
   @IsNotEmpty()
   @IsString()
-  key: string;
+  keyId: string;
 }
 
 export class DtoApiKeyUpdate {

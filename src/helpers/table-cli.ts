@@ -1,71 +1,322 @@
 import CliTable3 from 'cli-table3';
 import wrap from 'wrap-ansi';
-import chalk from 'chalk';
+import { logger } from '../libs';
+import { removeEndlines, resetTextStyle, serialize, textColor } from './format-string';
+
+const terminalWidth = process.stdout?.columns ?? 240;
+
+type TOptionsTableData<T extends Object = any> = {
+  slideStr: Array<keyof T>;
+  style: Partial<CliTable3.TableConstructorOptions['style']>;
+  colorize: boolean;
+  width: number;
+};
+
+const defaultOptionsTableData: TOptionsTableData = {
+  slideStr: [],
+  style: {},
+  colorize: true,
+  width: terminalWidth,
+};
+
+export class TableData<T = any> {
+  private readonly isTable = true;
+
+  constructor(
+    private data: T[],
+    private fields: Array<[keyof T, string] | keyof T>,
+    private options: Partial<TOptionsTableData>
+  ) {}
+
+  public create(options?: Partial<TOptionsTableData>) {
+    const opts = {
+      ...defaultOptionsTableData,
+      ...this.options,
+      ...options,
+    };
+
+    const COL_WIDTH = Math.floor(opts.width / this.fields.length) - 5;
+    const colWidths = this.fields.map(() => COL_WIDTH);
+
+    const table = new CliTable3({
+      head: this.fields.map((f) => (typeof f === 'object' ? f[1] : String(f))),
+      style: { compact: true, head: ['cyan'], border: ['gray'], ...opts.style },
+      colWidths,
+    });
+
+    for (const item of this.data) {
+      table.push(
+        this.fields.map((f) => {
+          const fieldString = typeof f === 'object' ? f[0] : f;
+          let strData = String(item[fieldString]) ?? '';
+
+          if (opts.slideStr.includes(fieldString)) {
+            return wrap(strData, COL_WIDTH - 2);
+          }
+
+          return wrap(strData, COL_WIDTH - 2, { hard: true, trim: true });
+        })
+      );
+    }
+
+    if (opts.colorize) return table.toString();
+
+    return resetTextStyle(table.toString());
+  }
+
+  public static isTableData(data: any) {
+    return typeof data?.data === 'object' && data?.isTable;
+  }
+
+  public json() {
+    return serialize(this.data);
+  }
+}
 
 export const printAppTable = <T>(
   list: T[],
   fields: Array<[keyof T, string] | keyof T>,
   slideStr: Array<keyof T> = []
 ) => {
-  const terminalWidth = process.stdout.columns ?? 240;
-  const COL_WIDTH = Math.floor(terminalWidth / fields.length) - 5;
-  const colWidths = fields.map(() => COL_WIDTH);
+  const table = new TableData<T>(list, fields, { slideStr });
 
-  const table = new CliTable3({
-    head: fields.map((f) => (typeof f === 'object' ? f[1] : String(f))),
-    style: { compact: true, head: ['cyan'], border: ['gray'] },
-    colWidths,
-  });
+  logger.info(table);
+};
 
-  for (const item of list) {
-    table.push(
-      fields.map((f) => {
-        const fieldString = typeof f === 'object' ? f[0] : f;
-        let strData = String(item[fieldString]) ?? '';
+type TGridRow = { label: string; data: string | any };
 
-        if (slideStr.includes(fieldString)) {
-          return wrap(strData, COL_WIDTH - 2);
-        }
+type TField<T> = keyof T | [keyof T, string];
 
-        return wrap(strData, COL_WIDTH - 2, { hard: true, trim: true });
-      })
-    );
+type TOptionsFormatGrid = {
+  name?: string;
+  split: string;
+  labelColMaxWidth: number;
+  colorize: boolean;
+  labelColor: typeof textColor;
+  dataColor: typeof textColor;
+  tableNameColor: typeof textColor;
+  width: number;
+};
+
+const defaultOptionFormatGrid: TOptionsFormatGrid = {
+  labelColor: textColor.red,
+  tableNameColor: textColor.whiteBright.bold,
+  dataColor: textColor.white,
+  split: '|',
+  labelColMaxWidth: -1,
+  colorize: true,
+  width: terminalWidth,
+};
+
+export class GridData<T = any> {
+  private readonly isGrid = true;
+
+  constructor(
+    private data: T,
+    private fields: Array<TField<T>>,
+    private options: Partial<TOptionsFormatGrid> = {}
+  ) {}
+
+  public setOptions(options: Partial<TOptionsFormatGrid> = {}) {
+    this.options = {
+      ...this.options,
+      ...options,
+    };
+
+    return this;
   }
 
-  console.log(table.toString());
-};
+  public create() {
+    const opts: TOptionsFormatGrid = {
+      ...defaultOptionFormatGrid,
+      ...this.options,
+    };
+
+    const prints: TGridRow[] = [];
+
+    this.fields.forEach((f) => {
+      let printPush: TGridRow = {
+        label: '',
+        data: '',
+      };
+      let fieldName = '',
+        fieldData: any = '';
+
+      if (typeof f === 'object' && Array.isArray(f)) {
+        const [name, alias] = f;
+
+        if (!this.data[name]) return;
+
+        fieldData = this.data[name];
+        fieldName = alias;
+      } else if (typeof f === 'string') {
+        fieldData = this.data[f];
+        fieldName = f;
+      }
+
+      printPush = {
+        label: fieldName,
+        data: fieldData,
+      };
+
+      prints.push(printPush);
+    });
+
+    return formatGrid(prints, opts);
+  }
+
+  public static isGridData(data: any | undefined) {
+    return typeof data?.data === 'object' && data?.isGrid;
+  }
+}
 
 export const printGrid = <T>(
   data: T,
-  fields: Array<keyof T | [keyof T, string]>,
-  splitStr = ': '
+  fields: Array<TField<T>>,
+  options: Partial<TOptionsFormatGrid> = {}
 ) => {
-  const prints: string[] = [];
+  logger.info(createGrid(data, fields, options));
+};
 
-  fields.forEach((f) => {
-    let printPush: string[] = [];
-    let fieldName = '',
-      fieldData: any = '';
+export const createGrid = <T>(
+  data: T,
+  fields: Array<TField<T>>,
+  options: Partial<TOptionsFormatGrid> = {}
+) => {
+  return new GridData<T>(data, fields, options);
+};
 
-    if (typeof f === 'object' && Array.isArray(f)) {
-      const [name, alias] = f;
+const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
+  const prints = [];
+  let widthContents = options.width - 3;
+  let maxLabelWidth = 0;
 
-      if (!data[name]) return;
+  for (const row of rows) {
+    maxLabelWidth = Math.max(row.label.length, maxLabelWidth);
+  }
 
-      fieldData = data[name];
-      fieldName = alias;
-    } else if (typeof f === 'string') {
-      fieldData = data[f];
-      fieldName = f;
-    }
+  const width = {
+    label: maxLabelWidth,
+    data: 0,
+    base: widthContents - (options.split?.length || 0),
+  };
 
-    printPush = [
-      chalk.red(fieldName),
-      typeof fieldData === 'object' ? JSON.stringify(fieldData) : String(fieldData),
-    ];
+  if (options.name) {
+    prints.push(
+      [
+        `┌${''.padStart(widthContents, '─')}┐`,
+        `│${options.tableNameColor(
+          options.name
+            .padEnd(Math.floor((widthContents + options.name.length) / 2))
+            .padStart(widthContents)
+        )}│`,
+        `└${''.padStart(widthContents, '─')}┘`,
+      ].join('\n')
+    );
+  }
 
-    prints.push(printPush.join(splitStr));
-  });
+  if (options.labelColMaxWidth > 0) {
+    maxLabelWidth = Math.min(
+      Math.ceil(widthContents * (options.labelColMaxWidth / 100)),
+      maxLabelWidth
+    );
+  }
 
-  console.log(prints.join('\n'));
+  width.label = maxLabelWidth;
+  width.data = width.base - width.label;
+
+  prints.push(
+    rows
+      .map((row) => {
+        let rowData = row.data,
+          isNestedGrid = false,
+          rowDataLength = width.data;
+
+        const factor = 2 / 3;
+        const childGridWidth = Math.floor(options.width * factor);
+
+        if (typeof rowData === 'object' && !!rowData?.isGrid) {
+          rowData = removeEndlines(
+            new GridData(rowData.data || {}, rowData.fields || [], rowData.options || {})
+              .setOptions({ width: childGridWidth, colorize: false })
+              .create()
+          );
+
+          isNestedGrid = true;
+          rowDataLength = childGridWidth - Math.floor(1 / factor);
+        } else if (typeof rowData === 'object' && !!rowData?.isTable) {
+          rowData = removeEndlines(
+            new TableData(rowData.data || [], rowData.fields || [], rowData.options || {}).create({
+              width: childGridWidth,
+              style: { 'padding-left': 0, 'padding-right': 0, head: [], border: [] },
+            })
+          );
+
+          isNestedGrid = true;
+          rowDataLength = childGridWidth - 20 - Math.floor(1 / factor);
+        } else {
+          rowData = serialize(rowData);
+        }
+
+        const linesLabel = Math.ceil(row.label.length / width.label);
+        const linesData = isNestedGrid
+          ? Math.ceil(rowData.length / childGridWidth)
+          : Math.ceil(rowData.length / width.data);
+        let maxLines = Math.max(linesLabel, linesData);
+
+        if (isNestedGrid) {
+          maxLines = linesLabel + linesData;
+        }
+
+        let lines: string[] = [];
+
+        for (let line = 0; line < maxLines; line++) {
+          let lineContent: string[] = [];
+          const offsetDataRow = isNestedGrid ? linesLabel : 0;
+          const lineLabel = (
+            row.label.slice(
+              line * width.label,
+              Math.min((line + 1) * width.label, row.label.length)
+            ) || ''
+          ).padEnd(width.label);
+          const lineData = (
+            rowData.slice(
+              (line - offsetDataRow) * rowDataLength,
+              Math.min((line - offsetDataRow + 1) * rowDataLength, rowData.length)
+            ) || ''
+          ).padEnd(rowDataLength);
+
+          if (isNestedGrid) {
+            if (line < linesLabel) {
+              lineContent.push(options.labelColor(lineLabel), ' ', line > 0 ? '' : options.split);
+
+              lines.push(lineContent.join(''));
+              continue;
+            }
+
+            lineContent.push(options.dataColor(lineData));
+
+            lines.push(lineContent.join(''));
+            continue;
+          }
+
+          lineContent.push(
+            options.labelColor(lineLabel),
+            ' ',
+            line > 0 ? ' ' : options.split,
+            ' ',
+            options.dataColor(lineData)
+          );
+
+          lines.push(lineContent.join(''));
+        }
+
+        return lines.join('\n');
+      })
+      .join('\n')
+  );
+
+  if (!options.colorize) return resetTextStyle(prints.join('\n'));
+
+  return prints.join('\n');
 };

@@ -1,26 +1,28 @@
-import { createClient } from '@redis/client';
-import { REDIS_CONFIG } from '../configs';
+import IORedis from 'ioredis';
+import { COMMON_CONFIG, REDIS_CONFIG } from '../configs';
+import { logger } from './logger';
 
-export type Redis = ReturnType<typeof createClient>;
+export type Redis = IORedis;
 
 let client: Redis | null = null;
 
 export const connectRedis = async () => {
   if (!!client) return client;
 
-  client = createClient({
-    socket: {
-      host: REDIS_CONFIG.HOST,
-      port: Number(REDIS_CONFIG.PORT),
-      reconnectStrategy: (retries) => Math.min(retries * 50, 2000),
-    },
+  client = new IORedis({
+    host: COMMON_CONFIG.DOCKER ? 'redis' : REDIS_CONFIG.HOST,
+    port: Number(REDIS_CONFIG.PORT),
+    maxRetriesPerRequest: null,
   });
 
-  client.on('connect', () => console.log('✅ Redis connected'));
-  client.on('ready', () => console.log('🟢 Redis ready'));
-  client.on('error', (err) => console.error('❌ Redis error', err));
+  client.on('connect', () => logger.info('✅ Redis connected'));
+  client.on('ready', () => logger.info('🟢 Redis ready'));
+  client.on('error', (err) => logger.error(err.message, '❌ Redis error'));
 
-  await client.connect();
+  await new Promise<void>((resolve, reject) => {
+    client!.once('ready', resolve);
+    client!.once('error', reject);
+  });
 };
 
 export const getRedis = (): Redis => {

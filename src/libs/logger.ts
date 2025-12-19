@@ -1,0 +1,221 @@
+import dayjs from 'dayjs';
+import fs from 'fs';
+import path from 'path';
+import winston from 'winston';
+import { LOGGER_CONSTANTS } from '../constants';
+import { ELoggerLevel } from '../enums';
+import {
+  bindStringFormat,
+  boundString,
+  createGrid,
+  deserialize,
+  GridData,
+  padNumberString,
+  serialize,
+  TableData,
+  textColor,
+} from '../helpers';
+
+type Logger = winston.Logger;
+
+const logDir = path.resolve(process.cwd(), LOGGER_CONSTANTS.BASE_DIR);
+const { combine, timestamp, printf } = winston.format;
+export class Log {
+  private readonly logger: Logger;
+
+  constructor() {
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+
+    this.logger = winston.createLogger({
+      levels: this.customLevels,
+      level: this.getLevel(ELoggerLevel.ERROR),
+      format: combine(timestamp({ format: LOGGER_CONSTANTS.FORMAT_TIMESTAMP }), this.formatConsole),
+      transports: [new winston.transports.Console()],
+    });
+  }
+
+  public error<T>(data: T | GridData<T> | TableData<T>, ...meta: any[]) {
+    this.log(ELoggerLevel.ERROR, data, ...meta);
+  }
+
+  public warn<T>(data: T | GridData<T> | TableData<T>, ...meta: any[]) {
+    this.log(ELoggerLevel.WARN, data, ...meta);
+  }
+
+  public info<T>(data: T | GridData<T> | TableData<T>, ...meta: any[]) {
+    this.log(ELoggerLevel.INFO, data, ...meta);
+  }
+
+  public debug<T>(data: T | GridData<T> | TableData<T>, ...meta: any[]) {
+    this.log(ELoggerLevel.DEBUG, data, ...meta);
+  }
+
+  private log<T>(level: ELoggerLevel, data: T | GridData<T> | TableData<T>, ...meta: any[]) {
+    const message = serialize(data);
+
+    this.writeLogFile<T>(level, data, ...meta);
+    this.logger.log(this.getLevel(level), message, ...meta);
+  }
+
+  private get formatConsole() {
+    return printf(
+      ({
+        level,
+        message,
+        timestamp,
+        [Symbol.for('splat')]: splats = [],
+      }: winston.Logform.TransformableInfo) => {
+        const { detail } = this.getMessageData(message);
+
+        const levelTag = this.getLevelColor(level, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE);
+
+        const extras = (splats as unknown[]).map?.(serialize).join(' ') || level.toUpperCase();
+
+        return createGrid(
+          {
+            timestamp: textColor.greenBright.bold(
+              boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_CONSOLE)
+            ),
+            level: levelTag,
+            message: detail,
+          },
+          [
+            ['timestamp', 'Log Time'],
+            ['level', 'Type'],
+            ['message', 'Detail'],
+          ],
+          {
+            name: extras,
+            split: ':',
+          }
+        ).create();
+      }
+    );
+  }
+
+  private formatFile<T>({
+    message,
+    timestamp,
+    [Symbol.for('splat')]: splats = [],
+  }: winston.Logform.TransformableInfo): string {
+    const { detail, isGrid, isTable } = this.getMessageData(message);
+
+    const extras =
+      (splats as unknown[])
+        .map?.((v) => boundString(serialize(v), LOGGER_CONSTANTS.BOUNDARY_META_FILE))
+        .join(LOGGER_CONSTANTS.META_SPLIT) || '';
+
+    return [
+      boundString(timestamp as string, LOGGER_CONSTANTS.BOUNDARY_META_FILE),
+      extras ? `${LOGGER_CONSTANTS.META_SPLIT}${extras}` : '',
+      ': ',
+      isGrid || isTable ? '\n' : '',
+      this.getPrintMessage<T>(detail),
+    ].join('');
+  }
+
+  private getPrintMessage<T = any>(data: string | Object | GridData<T>) {
+    if (typeof data === 'object') {
+      if (data instanceof GridData)
+        return data.setOptions({ colorize: false, width: 200 }).create();
+      if (data instanceof TableData) return data.create({ colorize: false });
+    }
+
+    return serialize(data, 2);
+  }
+
+  private getMessageData(message: unknown) {
+    const serialized: any | { data: any | Object } = deserialize(message as string);
+
+    let detail: string | Object = 'EMPTY';
+    let isGrid = false,
+      isTable = false;
+
+    if (typeof serialized === 'string' || typeof serialized === 'number') {
+      detail = String(serialized);
+    } else if (GridData.isGridData(serialized)) {
+      const gridData = serialized as any;
+
+      detail = new GridData<typeof gridData>(gridData.data, gridData.fields, gridData.options);
+      isGrid = true;
+    } else if (TableData.isTableData(serialized)) {
+      const gridData = serialized as any;
+
+      detail = new TableData<typeof gridData>(gridData.data, gridData.fields, gridData.options);
+      isTable = true;
+    } else if (typeof serialized?.data === 'object' && !serialized?.isGrid) {
+      detail = serialize(0);
+    } else {
+      detail = serialized;
+    }
+
+    return { detail, isGrid, isTable };
+  }
+
+  private getLogFilePath(level: ELoggerLevel) {
+    const logTimestamp = dayjs();
+
+    const filePath = path.join(
+      logDir,
+      bindStringFormat(LOGGER_CONSTANTS.FORMAT_FILES, {
+        level: level.toString().toLowerCase(),
+        second: padNumberString(logTimestamp.second(), 2),
+        minute: padNumberString(logTimestamp.minute(), 2),
+        hour: padNumberString(logTimestamp.hour(), 2),
+        date: padNumberString(logTimestamp.date(), 2),
+        month: padNumberString(logTimestamp.month() + 1, 2),
+        year: logTimestamp.year(),
+      })
+    );
+
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    return filePath;
+  }
+
+  private writeLogFile<T>(
+    level: ELoggerLevel,
+    message: T | GridData<T> | TableData<T>,
+    ...meta: any[]
+  ) {
+    const filePath = this.getLogFilePath(level);
+
+    fs.writeFileSync(
+      filePath,
+      this.formatFile<T>({
+        message,
+        level,
+        timestamp: dayjs().format(LOGGER_CONSTANTS.FORMAT_TIMESTAMP),
+        [Symbol.for('splat')]: meta,
+      }) + '\n',
+      { flag: 'a' }
+    );
+  }
+
+  private getLevel(level: ELoggerLevel) {
+    return level.toLowerCase();
+  }
+
+  private getLevelColor(level: string, boundChars: string[]) {
+    const color = {
+      [this.getLevel(ELoggerLevel.INFO)]: textColor.cyanBright.bold,
+      [this.getLevel(ELoggerLevel.WARN)]: textColor.yellowBright.bold,
+      [this.getLevel(ELoggerLevel.ERROR)]: textColor.redBright.bold,
+      [this.getLevel(ELoggerLevel.DEBUG)]: textColor.magentaBright.bold,
+    };
+
+    return (color[level as ELoggerLevel] || textColor.white)(boundString(level, boundChars));
+  }
+
+  private get customLevels() {
+    return {
+      [this.getLevel(ELoggerLevel.DEBUG)]: 0,
+      [this.getLevel(ELoggerLevel.INFO)]: 1,
+      [this.getLevel(ELoggerLevel.WARN)]: 2,
+      [this.getLevel(ELoggerLevel.ERROR)]: 3,
+    };
+  }
+}
+
+export const logger = new Log();

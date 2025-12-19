@@ -1,56 +1,40 @@
-import { NextFunction, Request, Response } from 'express';
-import { EApiKeyType } from '../enums';
+import { NextFunction, Response } from 'express';
+import { EApiKeyType, EErrorCode, EResponseStatus } from '../enums';
+import { Exception, middlewareHandler, valueOrDefault } from '../helpers';
 import { getServices } from '../services';
+import { TRequestBase } from '../types';
 
 export const ValidateApiKey = (type: EApiKeyType) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return middlewareHandler(async (req: TRequestBase, _res: Response, next: NextFunction) => {
     const { apiKeyService } = getServices();
+    req.apiKeyType = type;
 
-    const authToken: string = (req.headers.authorization || '') as string;
-    const apiKeyAppHeader: string = req.headers['x-api-key-app'] as string;
+    const authToken: string = valueOrDefault<string>(req.headers.authorization, '');
 
-    const [_, apiKeyHeader] = authToken.split(' ');
+    const [_apikeyType, publicKeyHeader] = authToken.split(' ');
 
-    if (!apiKeyHeader) {
-      return res.status(403).json({
-        status: 403,
-        success: false,
-        error: 'Missing Api key',
-      });
+    if (!publicKeyHeader) {
+      throw new Exception(EResponseStatus.Unauthorized, EErrorCode.APIKEY_UNAUTHORIZATION);
     }
 
-    const apikeyPayload = await apiKeyService.extractPayload(apiKeyHeader, apiKeyAppHeader);
-
-    if (!apikeyPayload || apikeyPayload.type !== type) {
-      return res.status(403).json({
-        status: 403,
-        success: false,
-        error: 'Mismatch API Key type',
-      });
+    if (!req.appSign) {
+      throw new Exception(EResponseStatus.Unauthorized, EErrorCode.MISSING_REQUEST_APP_SIGNATURE);
     }
 
-    const { appCode, key } = apikeyPayload;
-
-    const valid = await apiKeyService.checkKeyType({
+    const valid = await apiKeyService.validate({
+      publicKey: publicKeyHeader,
       type,
-      key: key,
-      appCode: appCode,
     });
 
     if (!valid) {
-      return res.status(403).json({
-        status: 403,
-        success: false,
-        error: 'Invalid API Key',
-      });
+      throw new Exception(EResponseStatus.Forbidden, EErrorCode.APIKEY_PAYLOAD_INVALID);
     }
 
-    (req as any).apiKey = {
+    req.apiKey = {
       type,
-      code: appCode,
-      key: appCode,
+      publicKey: publicKeyHeader,
     };
 
     next();
-  };
+  });
 };

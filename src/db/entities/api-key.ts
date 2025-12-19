@@ -1,25 +1,11 @@
 import { EntitySchema } from 'typeorm';
-import { IApp } from './app';
+import { DB_TABLES_CONSTANTS } from '../../constants';
 import { EApiKeyType } from '../../enums';
-
-export interface IApiKey {
-  id: string;
-  key: string;
-  type: EApiKeyType;
-  publicKey: string | null;
-  description: string | null;
-  appId: string;
-  active: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  revokedAt?: Date | null;
-  deletedAt: null;
-  app?: IApp;
-}
+import { IApiKey } from '../../types';
 
 export const ApiKeyEntity = new EntitySchema<IApiKey>({
-  name: 'ApiKey',
-  tableName: 'api_key',
+  name: DB_TABLES_CONSTANTS.API_KEY.NAME,
+  tableName: DB_TABLES_CONSTANTS.API_KEY.TABLE_NAME,
   columns: {
     id: {
       type: 'uuid',
@@ -35,8 +21,8 @@ export const ApiKeyEntity = new EntitySchema<IApiKey>({
       default: EApiKeyType.THIRD_PARTY,
       enum: EApiKeyType,
     },
-    key: {
-      type: 'text',
+    keyId: {
+      type: 'uuid',
       nullable: false,
     },
     publicKey: {
@@ -76,9 +62,22 @@ export const ApiKeyEntity = new EntitySchema<IApiKey>({
   relations: {
     app: {
       type: 'many-to-one',
-      target: 'App',
+      target: DB_TABLES_CONSTANTS.APP.NAME,
       joinColumn: { name: 'appId' },
       onDelete: 'CASCADE',
     },
+    key: {
+      type: 'many-to-one',
+      target: DB_TABLES_CONSTANTS.KEY.NAME,
+      joinColumn: { name: 'keyId' },
+      onDelete: 'CASCADE',
+    },
   },
+  indices: [
+    { columns: ['publicKey'], unique: true, where: '"api_key"."deletedAt" IS NULL' },
+    { columns: ['appId', 'publicKey'], where: '"api_key"."deletedAt" IS NULL' },
+    { columns: ['appId', 'active', 'type'], where: '"api_key"."deletedAt" IS NULL' },
+    { columns: ['keyId'], where: '"api_key"."deletedAt" IS NULL' },
+    { columns: ['deletedAt'], where: '"api_key"."deletedAt" IS NULL' },
+  ],
 });

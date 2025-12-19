@@ -16,3 +16,11 @@ export const verifyJwt = <T extends JwtPayload>(token: string, secret: string): 
     return null;
   }
 };
+
+export const decodeJwt = <T extends JwtPayload>(token: string): T | null => {
+  try {
+    return jwt.decode(token) as T;
+  } catch {
+    return null;
+  }
+};

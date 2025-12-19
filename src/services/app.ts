@@ -1,76 +1,29 @@
 import { In } from 'typeorm';
-import {
-  DtoAppCreate,
-  DtoAppDelete,
-  DtoAppDetail,
-  DtoAppGetConfigs,
-  DtoAppUpConfig,
-  DtoAppUpdate,
-} from '../types';
+import { EErrorCode, EResponseStatus } from '../enums';
+import { CacheKeyGenerator, Exception, promiseAll } from '../helpers';
 import { AppRepository } from '../repositories';
-import { EAppConfigsUpdateType } from '../enums';
-import { APP_CONSTANTS } from '../constants';
+import { DtoAppCreate, DtoAppDelete, DtoAppDetail, DtoAppUpdate } from '../types';
 import { CacheService } from './cache';
+import { ConfigService } from './config';
 
 export class AppService {
   constructor(
     private readonly appRepository: AppRepository,
-    private readonly cacheService: CacheService
+    private readonly cacheService: CacheService,
+    private readonly configService: ConfigService
   ) {}
 
-  public async getConfigs(dto: DtoAppGetConfigs) {
-    const app = await this.getByCode(dto.code);
-    if (!app) {
-      throw new Error('Not exist!');
-    }
-
-    return app.configs;
-  }
-
-  public async upConfig(code: string, dto: DtoAppUpConfig) {
-    const app = await this.getByCode(code);
-    if (!app) {
-      throw new Error('Not exist!');
-    }
-
-    const { configs, mode } = dto;
-    let updateConfigs = app.configs;
-
-    switch (mode) {
-      case EAppConfigsUpdateType.HARD:
-        updateConfigs = configs;
-        break;
-
-      case EAppConfigsUpdateType.SOFT:
-        updateConfigs = {
-          ...updateConfigs,
-          ...configs,
-        };
-        break;
-
-      default:
-        break;
-    }
-
-    await this.appRepository.update(
-      {
-        id: app.id,
-      },
-      {
-        configs: {
-          ...APP_CONSTANTS.DEFAULT_CONFIGS,
-          ...updateConfigs,
-        },
-      }
-    );
-
-    return updateConfigs;
-  }
-
   public async find() {
-    return await this.appRepository.find({
+    const cacheKey = CacheKeyGenerator.appList();
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.appRepository.find({
       select: { id: true, code: true, name: true, createdAt: true, updatedAt: true },
     });
+
+    await this.cacheService.set(cacheKey, result);
+    return result;
   }
 
   public async detail(dto: DtoAppDetail) {
@@ -79,7 +32,7 @@ export class AppService {
 
     const isExist = await this.getById(dto.id);
     if (!isExist) {
-      throw new Error('Not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     const detail = await this.appRepository.findOne({
@@ -104,31 +57,38 @@ export class AppService {
   public async create(dto: DtoAppCreate) {
     const isExist = await this.getByCode(dto.code);
     if (isExist) {
-      throw new Error('Existed!');
+      throw new Exception(EResponseStatus.BadRequest, EErrorCode.APP_EXISTED);
     }
 
     const { code, name } = dto;
 
     const saved = await this.appRepository.save({
-      code: this.safeCode(code),
+      code: AppService.safeCode(code),
       name,
-      configs: APP_CONSTANTS.DEFAULT_CONFIGS,
     });
 
+    await this.configService.up({
+      appId: saved.id,
+      appCode: saved.code,
+      configs: {},
+      appNamespace: dto.namespace,
+    });
+
+    await this.cacheService.delete(CacheKeyGenerator.appList());
     return saved;
   }
 
   public async update(dto: DtoAppUpdate) {
     const isExist = await this.getById(dto.id);
     if (!isExist) {
-      throw new Error('Not exist!');
+      throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
     const { id, code = isExist.code, name = isExist.name } = dto;
 
     const isExistedCode = await this.getByCode(code);
     if (isExistedCode) {
-      throw new Error('Existed!');
+      throw new Exception(EResponseStatus.BadRequest, EErrorCode.APP_EXISTED);
     }
 
     const saved = await this.appRepository.update(
@@ -136,10 +96,17 @@ export class AppService {
         id,
       },
       {
-        code: this.safeCode(code),
+        code: AppService.safeCode(code),
         name,
       }
     );
+
+    if (saved.affected) {
+      await promiseAll([
+        this.cacheService.delete(CacheKeyGenerator.appList()),
+        this.cacheService.delete(CacheKeyGenerator.appDetail(dto.id)),
+      ]);
+    }
 
     return !!saved.affected;
   }
@@ -149,12 +116,19 @@ export class AppService {
       id: In(dto.ids),
     });
 
+    if (deleted.affected && deleted.affected > 0) {
+      await promiseAll([
+        this.cacheService.delete(CacheKeyGenerator.appList()),
+        ...dto.ids.map((id) => this.cacheService.delete(CacheKeyGenerator.appDetail(id))),
+      ]);
+    }
+
     return deleted.affected === dto.ids.length;
   }
 
   public getByCode(code: string) {
     return this.appRepository.findOneBy({
-      code: code,
+      code: AppService.safeCode(code),
     });
   }
 
@@ -162,7 +136,7 @@ export class AppService {
     return this.appRepository.findOneBy({ id });
   }
 
-  private safeCode(code: string) {
+  public static safeCode(code: string) {
     return code.replace(new RegExp(' '), '_').toUpperCase().trim();
   }
 }

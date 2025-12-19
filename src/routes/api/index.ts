@@ -1,8 +1,12 @@
 import { Router } from 'express';
-import { ApiKeyRouter } from './api-key';
-import { AppRouter } from './app';
+import { ROUTE_PATHS } from '../../constants';
+import { ValidateNamespace } from '../../middlewares';
+import { ApiV1Router } from './v1';
 
-export const ApiRoutes = Router();
+export const ApiRouter = Router();
 
-ApiRoutes.use('/api-key', ApiKeyRouter);
-ApiRoutes.use('/app', AppRouter);
+const apiPaths = ROUTE_PATHS.api;
+
+ApiRouter.use(ValidateNamespace());
+
+ApiRouter.use(apiPaths.v1.base, ApiV1Router);

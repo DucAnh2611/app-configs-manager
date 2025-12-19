@@ -22,6 +22,10 @@ export class DtoAppCreate {
   @IsNotEmpty()
   @IsString()
   name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  namespace: string;
 }
 
 export class DtoAppUpdate {

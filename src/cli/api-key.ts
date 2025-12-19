@@ -1,5 +1,7 @@
 import { Command } from 'commander';
-import { printAppTable, buildCliCommand, ICliCommand, printGrid } from '../helpers';
+import { EApiKeyType } from '../enums';
+import { buildCliCommand, ICliCommand, printAppTable, printGrid } from '../helpers';
+import { ApiKeyService, getServices } from '../services';
 import {
   DtoApiKeyGenerate,
   DtoApiKeyList,
@@ -7,8 +9,6 @@ import {
   DtoApiKeyToggle,
   DtoApiKeyUpdate,
 } from '../types';
-import { EApiKeyType } from '../enums';
-import { ApiKeyService, getServices } from '../services';
 
 const CommandPrefix = 'api_key';
 
@@ -32,6 +32,8 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
           ['active', 'Active'],
         ]
       );
+
+      process.exit(1);
     },
   },
   {
@@ -39,23 +41,32 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
     description: 'Generate api key',
     options: [
       { required: true, flags: '--code <code>', description: 'App code' },
+      { required: true, flags: '--namespace <namespace>', description: 'Namespace of config' },
       { flags: '--description <description>', description: 'Api key description', default: '' },
       { flags: '--type <type>', description: 'Api key type', default: EApiKeyType.CONFIG },
       { flags: '--length <length>', description: 'Api key length', default: '32' },
+      {
+        flags: '--publicKeyLength <publicKeyLength>',
+        description: 'Api key public key length',
+        default: '32',
+      },
     ],
     action: async (opts: DtoApiKeyGenerate) => {
-      const generate = await apiKeyService.generate(opts);
+      const generate = await apiKeyService.generate({
+        ...opts,
+        length: Number(opts.length),
+        publicKeyLength: Number(opts.publicKeyLength),
+      });
 
       const cols: Array<[keyof typeof generate, string]> = [
         ['id', 'Id'],
-        ['formattedKey', 'Auth Key'],
+        ['publicKey', 'Auth Key'],
+        ['type', 'Api Key Type'],
       ];
 
-      if (opts.type === EApiKeyType.THIRD_PARTY) {
-        cols.push(['publicKey', 'Third Party public key']);
-      }
-
       printGrid(generate, cols);
+
+      process.exit(1);
     },
   },
   {
@@ -72,6 +83,8 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
         ['publicKey', 'Public Key'],
         ['active', 'Active'],
       ]);
+
+      process.exit(1);
     },
   },
   {
@@ -80,21 +93,21 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
     options: [
       { required: true, flags: '--code <code>', description: 'App code' },
       { required: true, flags: '--id <id>', description: 'Api key id', default: '' },
-      { flags: '--length <length>', description: 'Api key length', default: '32' },
+      { required: true, flags: '--namespace <namespace>', description: 'Namespace of config' },
+      { flags: '--length <length>', description: 'Api key public length', default: '32' },
     ],
     action: async (opts: DtoApiKeyReset) => {
-      const reset = await apiKeyService.reset(opts);
+      const reset = await apiKeyService.reset({ ...opts, length: Number(opts.length) });
 
       const cols: Array<[keyof typeof reset, string]> = [
         ['id', 'Id'],
-        ['formattedKey', 'Auth Key'],
+        ['publicKey', 'Auth Key'],
+        ['type', 'Api Key Type'],
       ];
 
-      if (reset.type === EApiKeyType.THIRD_PARTY) {
-        cols.push(['publicKey', 'Third Party public key']);
-      }
-
       printGrid(reset, cols);
+
+      process.exit(1);
     },
   },
   {
@@ -116,6 +129,8 @@ const Commands = (apiKeyService: ApiKeyService): ICliCommand[] => [
       ];
 
       printGrid(opts, cols);
+
+      process.exit(1);
     },
   },
 ];

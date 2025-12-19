@@ -10,7 +10,9 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - .env.docker
+      - .env
+    environment:
+      DOCKER: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,10 +29,10 @@ services:
   # PostgreSQL Database
   # ==========================
   postgres:
-    container_name: app_configs_db
+    container_name: db
     image: postgres:16-alpine
     env_file:
-      - .env.docker
+      - .env
     environment:
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
@@ -50,7 +52,7 @@ services:
   # Redis Cache
   # ==========================
   redis:
-    container_name: app_configs_redis
+    container_name: redis
     image: redis/redis-stack-server:latest
     ports:
       - '6379:6379'
