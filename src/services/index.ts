@@ -88,6 +88,5 @@ export type {
   KeyService,
   QueueService,
   WebhookHistoryService,
-  WebhookService
+  WebhookService,
 };
-

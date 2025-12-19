@@ -19,6 +19,8 @@
     "enum:convert:error-response": "ts-node src/scripts/convert-enum-error.ts",
     "prepare": "husky install",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.js",
+    "lint:fix": "eslint src --ext .ts,.js --fix",
     "prepush": "npm run lint && npm run typecheck",
     "cli": "npx ts-node src/cli/index.ts",
     "app": "npm run cli --",
@@ -27,8 +29,10 @@
     "clean": "rimraf dist"
   },
   "lint-staged": {
-    "src/**/*.{ts,tsx}": [
-      "eslint --fix",
+    "src/**/*.{ts,tsx,js}": [
+      "bash -c 'eslint --fix --max-warnings=0'"
+    ],
+    "*.{json,md,yml,yaml,css,scss}": [
       "prettier --write"
     ]
   },
@@ -61,7 +65,8 @@
     "typescript-eslint": "^8.46.0",
     "uuid": "^13.0.0",
     "winston": "^3.18.3",
-    "wrap-ansi": "^9.0.2"
+    "wrap-ansi": "^9.0.2",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",

@@ -1,5 +1,8 @@
-echo "=== Type check  ==="
+echo "=== Typecheck  ==="
 npm run typecheck || exit 1
+
+echo "=== Lint fix ==="
+npm run lint:fix || exit 1
 
 echo "=== Format EErrorCode  ==="
 npm run enum:convert:error-response
@@ -11,3 +14,5 @@ npm run test || exit 1
 
 npm run dotenv:pull
 npm run dotenv:push
+
+git add .
