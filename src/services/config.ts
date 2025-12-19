@@ -151,7 +151,7 @@ export class ConfigService {
 
     const [cached] = await Promise.all([
       this.cache(configData, dto),
-      this.triggerWebhookOnChange(config, config.app.code, EWebhookTriggerType.CHANGE),
+      this.triggerWebhookOnChange(config, app.code, EWebhookTriggerType.CHANGE),
       this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 
@@ -208,7 +208,7 @@ export class ConfigService {
 
     const [cached] = await Promise.all([
       this.cache(rollbacked, dto),
-      this.triggerWebhookOnChange(config, config.app.code, EWebhookTriggerType.REMOVE),
+      this.triggerWebhookOnChange(config, app.code, EWebhookTriggerType.REMOVE),
       this.cacheService.delete(this.getCacheKey(dto, this.history.name)),
     ]);
 

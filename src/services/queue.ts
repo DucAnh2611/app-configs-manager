@@ -39,11 +39,11 @@ export class QueueService {
       concurrency,
     });
 
-    const onCompleted = async (job: Job) => {
+    const onCompleted = async (_job: Job) => {
       this.printResultWorker(queueName, 'Completed');
     };
 
-    const onFailed = async (job: Job | undefined, err: Error) => {
+    const onFailed = async (_job: Job | undefined, _err: Error) => {
       this.printResultWorker(queueName, 'Failed');
     };
 

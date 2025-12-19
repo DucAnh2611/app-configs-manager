@@ -38,7 +38,7 @@ describe('Config Service / up', () => {
           testing: true,
         },
       });
-    } catch (e) {
+    } catch {
       fail();
     }
   });

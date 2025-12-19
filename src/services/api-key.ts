@@ -54,7 +54,7 @@ export class ApiKeyService {
     updateApiKey.active = !apiKey.active;
     updateApiKey.revokedAt = updateApiKey.active ? null : new Date();
 
-    const toggled = await this.apiKeyRepository.update(
+    await this.apiKeyRepository.update(
       {
         id: dto.id,
         appId: app.id,

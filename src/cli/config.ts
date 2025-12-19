@@ -4,7 +4,7 @@ import { ConfigService, getServices } from '../services';
 
 const CommandPrefix = 'cfg';
 
-const Commands = (configService: ConfigService): ICliCommand[] => [];
+const Commands = (_configService: ConfigService): ICliCommand[] => [];
 
 export const registerConfigCommands = (program: Command) => {
   const { configService } = getServices();

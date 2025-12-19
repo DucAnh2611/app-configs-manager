@@ -9,7 +9,7 @@ export const TestRouter = createRouter([
     path: webhookTestPaths.get,
     method: 'get',
     middlewares: [],
-    handler: async (req: TRequest, res) => {
+    handler: async (req: TRequest, _res) => {
       printGrid(
         {
           path: '/test/webhook',
@@ -35,7 +35,7 @@ export const TestRouter = createRouter([
     path: webhookTestPaths.post,
     method: 'post',
     middlewares: [],
-    handler: async (req: TRequest, res) => {
+    handler: async (req: TRequest, _res) => {
       printGrid(
         {
           path: '/test/webhook',

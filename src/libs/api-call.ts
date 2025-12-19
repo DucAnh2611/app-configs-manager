@@ -145,7 +145,7 @@ const getAxiosInstance = ({
       if (!error.response || typeof error.response.data !== 'object') {
         detail = {
           error: 'Unknown Error!',
-          raw: error.response?.data,
+          raw: data,
         };
       }
 

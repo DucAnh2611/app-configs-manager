@@ -23,7 +23,6 @@ function processEnumFile(config: EnumConfig): boolean {
 
   let content = readFileSync(filePath, 'utf-8');
 
-  const hasLF = content.includes('\n');
   const hasCRLF = content.includes('\r\n');
   const lineEnding = hasCRLF ? '\r\n' : '\n';
 
@@ -45,7 +44,6 @@ function processEnumFile(config: EnumConfig): boolean {
           modified = true;
           const indent = line.match(/^\s*/)?.[0] || '  ';
           const trailingComma = line.trim().endsWith(',') ? ',' : '';
-          const res = `${indent}${memberName} = '${memberName}'${trailingComma}`;
 
           console.log(
             `[${chalk.white(filePath)}] [${chalk.magenta(enumName)}]: ${chalk.blue(memberName)} => ${chalk.blue(`${memberName} = '${memberName}'`)} `

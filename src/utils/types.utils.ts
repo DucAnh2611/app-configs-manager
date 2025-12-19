@@ -9,8 +9,8 @@ export const when = (variable: unknown) => ({
 });
 
 export const is = when;
-
 export const check = when;
+export const satisfy = when;
 
 export const toBoolean = (data: unknown) => {
   switch (typeof data) {
