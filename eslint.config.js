@@ -1,5 +1,6 @@
 import eslintPluginPrettier from "eslint-plugin-prettier";
 import tseslint from "typescript-eslint";
+import unusedImports from "eslint-plugin-unused-imports";
 
 export default [
   {
@@ -21,7 +22,8 @@ export default [
     },
     plugins: {
       prettier: eslintPluginPrettier,
-      "@typescript-eslint": tseslint.plugin
+      "@typescript-eslint": tseslint.plugin,
+      "unused-imports": unusedImports
     },
     rules: {
       "prettier/prettier": ["error", {
@@ -29,7 +31,17 @@ export default [
       }],
       "eol-last": "off",
       "no-multiple-empty-lines": ["error", { max: 1, maxEOF: 1, maxBOF: 0 }],
-      "padding-line-between-statements": "off"
+      "padding-line-between-statements": "off",
+
+      "unused-imports/no-unused-imports": "warn",
+      "unused-imports/no-unused-vars": ["warn", {
+        vars: "all",
+        varsIgnorePattern: "^_",
+        args: "after-used",
+        argsIgnorePattern: "^_"
+      }],
+      "@typescript-eslint/no-unused-vars": "off",
+      "no-unused-vars": "off"
     }
   }
 ];

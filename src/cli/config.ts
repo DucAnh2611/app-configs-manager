@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { buildCliCommand, ICliCommand, printAppTable } from '../helpers';
+import { buildCliCommand, ICliCommand } from '../helpers';
 import { ConfigService, getServices } from '../services';
 
 const CommandPrefix = 'cfg';

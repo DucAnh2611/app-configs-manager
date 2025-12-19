@@ -1,5 +1,48 @@
 import dayjs, { Dayjs, ManipulateType } from 'dayjs';
 import { APP_CONSTANTS } from '../constants';
+import { Validator } from './validator.util';
+
+export const when = (variable: unknown) => ({
+  and: (con2: unknown) => toBoolean(variable) && toBoolean(con2),
+  or: (con2: unknown) => toBoolean(variable) || toBoolean(con2),
+  value: () => toBoolean(variable),
+});
+
+export const is = when;
+
+export const check = when;
+
+export const toBoolean = (data: unknown) => {
+  switch (typeof data) {
+    case 'string':
+      return !!data.trim();
+
+    case 'number':
+    case 'bigint':
+      return data !== 0;
+
+    case 'boolean':
+      return data;
+
+    case 'symbol':
+    case 'function':
+      return true;
+
+    case 'undefined':
+      return false;
+
+    case 'object':
+      if (data === null) return false;
+
+      if (Array.isArray(data)) {
+        return !!data.length;
+      }
+
+      return Object.keys(data).length > 0; // Fix: was Object(data).keys()
+  }
+};
+
+export const and = () => {};
 
 export const isNullOrUndefined = (value?: unknown | null) => {
   return processConditions(value).or(
@@ -8,26 +51,25 @@ export const isNullOrUndefined = (value?: unknown | null) => {
   );
 };
 
-export const isNullAndCondtions = <T extends unknown = unknown>(
+export const isNullAndConditions = <T>(
   value: T | null,
   ...conditions: Array<(value: T) => boolean>
 ): boolean => {
   if (value === null) return true;
 
-  return processConditions(value).and(...conditions);
+  return conditions.every((condition) => condition(value));
 };
 
 export const processConditions = <T>(data: T) => ({
   and: (...conditions: Array<(data: T) => boolean>) =>
-    conditions.reduce((previous, condition) => previous && condition(data), false),
+    conditions.reduce((previous, condition) => previous && condition(data), true),
   or: (...conditions: Array<(data: T) => boolean>) =>
     conditions.reduce((previous, condition) => previous || condition(data), false),
 });
 
 export const isManipulateType = (value: unknown): value is ManipulateType => {
-  return (
-    typeof value === 'string' &&
-    (APP_CONSTANTS.DAYJS_MANIPULATE_UNITS as readonly string[]).includes(value)
+  return when(typeof value === 'string').and(
+    (APP_CONSTANTS.DAYJS_MANIPULATE_UNITS as readonly string[]).includes(value as string)
   );
 };
 
@@ -53,11 +95,25 @@ type TCustomParamsValue = unknown;
 
 export const transformTypes = <CustomType extends unknown = unknown>(value: unknown) =>
   new (class implements ITransformTypes<CustomType> {
+    private v: Validator;
+
+    constructor() {
+      this.v = new Validator(value);
+    }
+
     dateUnit() {
-      if (!isManipulateType(value)) return 'ms' as TTransformTypes<CustomType>['date-unit'];
+      const validate = this.v.string().execute();
+
+      if (when(!isManipulateType(value)).or(!validate.success))
+        throw new Error(`Cannot convert "${value}" to date-unit sytem`);
+
       return String(value) as TTransformTypes<CustomType>['date-unit'];
     }
+
     string() {
+      const validate = this.v.string().execute();
+      if (!validate.success) throw new Error(`Cannot convert "${value}" to string`);
+
       return String(value) as TTransformTypes<CustomType>['string'];
     }
 
@@ -73,7 +129,7 @@ export const transformTypes = <CustomType extends unknown = unknown>(value: unkn
     boolean() {
       if (typeof value === 'string') {
         const lowerValue = value.toLowerCase();
-        if (lowerValue === 'false' || lowerValue === '0')
+        if (check(lowerValue === 'false').or(lowerValue === '0'))
           return false as TTransformTypes<CustomType>['boolean'];
       }
 
@@ -81,7 +137,7 @@ export const transformTypes = <CustomType extends unknown = unknown>(value: unkn
     }
 
     date() {
-      if (value !== undefined && value !== null) {
+      if (check(value !== undefined).and(value !== null)) {
         const parsedDate = dayjs(value as any);
         if (!parsedDate.isValid()) {
           throw new Error(`Cannot parse "${value}" as date`);

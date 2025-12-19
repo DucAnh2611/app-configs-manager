@@ -5,7 +5,10 @@ export const TEST_CONSTANTS = {
   },
   run: {
     helpers: {
-      crypto: { e: false, 'e+d': true },
+      crypto: { e: false, 'e+d': false },
+    },
+    utils: {
+      validator: { ok: false },
     },
     configService: {
       get: {
@@ -13,7 +16,7 @@ export const TEST_CONSTANTS = {
         a: false,
       },
       up: {
-        o: true,
+        o: false,
         b: false,
       },
     },

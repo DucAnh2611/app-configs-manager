@@ -1,7 +1,7 @@
 import { EErrorCode, EResponseStatus } from '../enums';
 import { Exception } from '../helpers';
 import { TConfigBaseRecordData, TConfigRecords } from '../types';
-import { isNullAndCondtions, ITransformTypes, transformTypes } from './types.utils';
+import { isNullAndConditions, ITransformTypes, transformTypes, when } from './types.utils';
 
 export class ConfigExtractor {
   constructor(private configs: TConfigRecords = {}) {}
@@ -19,9 +19,9 @@ export class ConfigExtractor {
       finalValue = null;
     }
 
-    if (transform) return this.transform<T>(value, transform);
+    if (transform) return this.transform<T>(finalValue, transform);
 
-    return value as T | null;
+    return finalValue as T | null;
   }
 
   select<
@@ -34,7 +34,11 @@ export class ConfigExtractor {
         (Object.keys(properties) as (keyof M)[]).reduce((result, key) => {
           const propertyValue = this.get(key as string, properties[key]);
 
-          if (propertyValue == null && isNullAndCondtions({ ...data, key }, ...throwConditions)) {
+          if (
+            when(propertyValue == null).and(
+              isNullAndConditions({ ...data, key }, ...throwConditions)
+            )
+          ) {
             throw new Exception(
               EResponseStatus.NotImplemented,
               EErrorCode.CONFIG_PROPERTY_INVALID,
