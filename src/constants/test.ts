@@ -12,11 +12,11 @@ export const TEST_CONSTANTS = {
     },
     configService: {
       get: {
-        o: false,
+        o: true,
         a: false,
       },
       up: {
-        o: false,
+        o: true,
         b: false,
       },
     },

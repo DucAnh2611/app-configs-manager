@@ -26,7 +26,7 @@ import {
   TKeyserviceGetOriginKeyResult,
   TKeyServiceGetRotateKey,
 } from '../types';
-import { processConditions } from '../utils';
+import { or, when } from '../utils';
 import { CacheService } from './cache';
 
 export class KeyService {
@@ -273,10 +273,10 @@ export class KeyService {
     const [start, end, originKey] = keyRaw;
 
     if (
-      processConditions({}).or(
-        () => end !== KEY_CONSTANTS.not_expire && now.isAfter(end),
-        () => key.status === EKeyStatus.RETIRED,
-        () => now.isAfter(key.expireAt)
+      or(
+        when(end !== KEY_CONSTANTS.not_expire).and(now.isAfter(end)),
+        key.status === EKeyStatus.RETIRED,
+        now.isAfter(key.expireAt)
       )
     ) {
       if (!options.renewOnExpire) {

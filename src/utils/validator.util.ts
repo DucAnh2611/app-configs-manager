@@ -38,7 +38,7 @@ export class Validator<T extends unknown = unknown> {
   }
 
   /**
-   * If field not have in shape -> remove
+   * If field is not included in shape -> remove
    */
   object(shape: z.ZodRawShape = {}) {
     this.schema = z.object(shape, { message: this.errorCode });

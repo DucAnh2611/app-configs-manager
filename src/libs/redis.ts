@@ -15,7 +15,6 @@ export const connectRedis = async () => {
     maxRetriesPerRequest: null,
   });
 
-  client.on('connect', () => logger.info('✅ Redis connected'));
   client.on('ready', () => logger.info('🟢 Redis ready'));
   client.on('error', (err) => logger.error(err.message, '❌ Redis error'));
 
