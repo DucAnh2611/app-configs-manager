@@ -12,6 +12,14 @@ export const is = when;
 export const check = when;
 export const satisfy = when;
 
+export const and = (...conds: boolean[]) => {
+  return conds.every((cond) => !!cond);
+};
+
+export const or = (...conds: boolean[]) => {
+  return conds.some((cond) => !!cond);
+};
+
 export const toBoolean = (data: unknown) => {
   switch (typeof data) {
     case 'string':
@@ -41,8 +49,6 @@ export const toBoolean = (data: unknown) => {
       return Object.keys(data).length > 0; // Fix: was Object(data).keys()
   }
 };
-
-export const and = () => {};
 
 export const isNullOrUndefined = (value?: unknown | null) => {
   return processConditions(value).or(
