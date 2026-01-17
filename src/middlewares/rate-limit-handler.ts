@@ -1,9 +1,12 @@
 import { NextFunction, Response } from 'express';
 import { EErrorCode, EResponseStatus } from '../enums';
-import { Exception, rateLimit } from '../helpers';
+import { checkRateLimit, Exception } from '../helpers';
 import { getRedis } from '../libs';
 import { getServices } from '../services';
 import { TRequest } from '../types';
+import { CETransform } from '../utils';
+
+const { schema, primitives } = CETransform;
 
 export const rateLimitHandler = () => async (req: TRequest, _res: Response, next: NextFunction) => {
   const redis = getRedis();
@@ -11,20 +14,28 @@ export const rateLimitHandler = () => async (req: TRequest, _res: Response, next
 
   const systemConfig = await configService
     .getSystemConfig({
-      RATE_LIMIT_DURATION: 'number',
-      RATE_LIMIT_REQUEST: 'number',
+      rateLimit: schema(
+        {
+          duration: primitives('number', 3),
+          request: primitives('number', 1),
+        },
+        {
+          duration: 3,
+          request: 1,
+        }
+      ).allowNull([]),
     })
     .allowNull([]);
 
-  if (systemConfig.RATE_LIMIT_DURATION < 1 || systemConfig.RATE_LIMIT_REQUEST < 1) {
+  if (systemConfig.rateLimit.duration < 1 || systemConfig.rateLimit.request < 1) {
     throw new Exception(EResponseStatus.BadRequest, EErrorCode.RATE_LIMIT_CONFIG_NOT_VALID);
   }
 
-  const rate = await rateLimit(
+  const rate = await checkRateLimit(
     redis,
     req.ip || req.hostname,
-    systemConfig.RATE_LIMIT_REQUEST,
-    systemConfig.RATE_LIMIT_DURATION
+    systemConfig.rateLimit.request,
+    systemConfig.rateLimit.duration
   );
 
   if (!rate.allowed) {

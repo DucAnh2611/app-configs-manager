@@ -26,6 +26,9 @@ import {
 import { ConfigService } from './config';
 import { KeyService } from './key';
 import { QueueService } from './queue';
+import { CETransform, ConfigExtractor } from '../utils';
+
+const { schema, primitives } = CETransform;
 
 export class WebhookHistoryService {
   private readonly CLEAN_STATUES = [
@@ -157,7 +160,7 @@ export class WebhookHistoryService {
         }
       );
 
-      const { WEBHOOK_AUTH_HEADER_NAME, WEBHOOK_AUTH_HEADER_FORMAT } = await this.getHeaderConfig(
+      const { webhookAuth } = await this.getHeaderConfig(
         COMMON_CONFIG.APP_CODE,
         COMMON_CONFIG.APP_ENV
       );
@@ -178,8 +181,8 @@ export class WebhookHistoryService {
             ? {
                 authHeader: {
                   key: webhookConfig.authKey,
-                  format: WEBHOOK_AUTH_HEADER_FORMAT as string,
-                  header: WEBHOOK_AUTH_HEADER_NAME as string,
+                  format: webhookAuth.header.format,
+                  header: webhookAuth.header.name,
                 },
               }
             : {}),
@@ -240,12 +243,12 @@ export class WebhookHistoryService {
   }
 
   public async registerCall() {
-    const { WEBHOOK_HISTORY_CLEAN_UP_PERIOD } = await this.getHeaderConfig(
+    const { webhookHistory } = await this.getHeaderConfig(
       COMMON_CONFIG.APP_CODE,
       COMMON_CONFIG.APP_ENV
     );
 
-    const [time, unit] = convertToDayjs(WEBHOOK_HISTORY_CLEAN_UP_PERIOD as string);
+    const [time, unit] = convertToDayjs(webhookHistory.cleanUpPeriod);
 
     const list = await this.webhookHistoryRepository.find({
       where: {
@@ -262,12 +265,12 @@ export class WebhookHistoryService {
   }
 
   public async registerClean() {
-    const { WEBHOOK_HISTORY_CLEAN_UP_PERIOD } = await this.getHeaderConfig(
+    const { webhookHistory } = await this.getHeaderConfig(
       COMMON_CONFIG.APP_CODE,
       COMMON_CONFIG.APP_ENV
     );
 
-    const [time, unit] = convertToDayjs(WEBHOOK_HISTORY_CLEAN_UP_PERIOD as string);
+    const [time, unit] = convertToDayjs(webhookHistory.cleanUpPeriod);
 
     const cleanList = await this.webhookHistoryRepository.find({
       where: {
@@ -301,14 +304,24 @@ export class WebhookHistoryService {
         bytes: randNumber({ from: 32, to: 64, decimal: 0 }),
         onGenerateDuration: {
           amount: 30,
-          unit: 's',
+          unit: 'seconds',
         },
         renewOnExpire: true,
       },
     });
 
-    return ConfigService.safeConfig(
-      ConfigService.decryptConfig(config.configs, expiredKey?.originKey ?? key)
-    );
+    return ConfigExtractor.from(ConfigService.decryptConfig(config.configs, expiredKey?.key ?? key))
+      .select({
+        webhookHistory: schema({
+          cleanUpPeriod: primitives('string', '30m'),
+        }).allowNull([]),
+        webhookAuth: schema({
+          header: schema({
+            name: primitives('string', 'Authorization'),
+            format: primitives('string', 'Apikey {apikey}'),
+          }).allowNull([]),
+        }).allowNull([]),
+      })
+      .allowNull([]);
   }
 }

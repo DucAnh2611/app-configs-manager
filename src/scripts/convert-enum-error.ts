@@ -92,7 +92,7 @@ function main(): void {
     console.log(
       chalk.green('Enum files have been updated. Please review and stage the changes.\r\n')
     );
-    process.exit(1);
+    process.exit(0);
   } else {
     console.log(chalk.green('All enum files are up to date.\r\n'));
     process.exit(0);

@@ -1,4 +1,3 @@
 npm install
 
-npm run dotenv:pull
 npm run migration:run

@@ -17,6 +17,10 @@ import { AppService } from './app';
 import { CacheService } from './cache';
 import { ConfigService } from './config';
 import { KeyService } from './key';
+import { CETransform } from '../utils';
+import { TKeyDurationUnit } from 'key-rotation-manager';
+
+const { schema, primitives, stringTypes } = CETransform;
 
 export class ApiKeyService {
   constructor(
@@ -37,6 +41,7 @@ export class ApiKeyService {
     });
 
     if (!apiKey) throw new Exception(EResponseStatus.NotFound, EErrorCode.KEY_NOT_EXIST);
+    if (!apiKey.active) throw new Exception(EResponseStatus.Forbidden, EErrorCode.KEY_INACTIVATED);
 
     return this.keyService.verify(apiKey.keyId);
   }
@@ -73,10 +78,28 @@ export class ApiKeyService {
       throw new Exception(EResponseStatus.NotFound, EErrorCode.APP_NOT_EXIST);
     }
 
+    const defaultGenerateDuration = {
+      amount: 30,
+      unit: 'days',
+    } as const;
+
     const systemConfig = await this.configService
       .getSystemConfig({
-        API_KEY_GENERATE_DURATION_AMOUNT: 'number',
-        API_KEY_GENERATE_DURATION_UNIT: 'dateUnit',
+        apiKey: schema(
+          {
+            generate: schema(
+              {
+                amount: primitives('number', defaultGenerateDuration.amount),
+                unit: stringTypes<TKeyDurationUnit>(
+                  ['days', 'hours', 'minutes', 'seconds'],
+                  defaultGenerateDuration.unit
+                ),
+              },
+              defaultGenerateDuration
+            ).allowNull([]),
+          },
+          { generate: defaultGenerateDuration }
+        ).allowNull([]),
       })
       .allowNull([]);
 
@@ -84,10 +107,7 @@ export class ApiKeyService {
       type: this.keyTypeString(dto.code, dto.namespace, dto.type),
       options: {
         bytes: dto.length,
-        onGenerateDuration: {
-          amount: systemConfig.API_KEY_GENERATE_DURATION_AMOUNT,
-          unit: systemConfig.API_KEY_GENERATE_DURATION_UNIT,
-        },
+        onGenerateDuration: systemConfig.apiKey.generate,
       },
     });
 

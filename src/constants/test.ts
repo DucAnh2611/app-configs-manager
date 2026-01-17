@@ -20,20 +20,5 @@ export const TEST_CONSTANTS = {
         b: false,
       },
     },
-    keyService: {
-      generate: {
-        rk: false,
-        ik: false,
-        rkmd: false,
-      },
-      getRotateKey: {
-        ne: false,
-        'e-kfne': false,
-        'e-kfe-vt': false,
-        'e-kfe-e': false,
-        'e-kfe-e-r': false,
-        'e-kfe-ns': false,
-      },
-    },
   },
 };

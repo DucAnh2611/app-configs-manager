@@ -1,11 +1,11 @@
-import { ManipulateType } from 'dayjs';
+import { TKeyDurationUnit, TKeyGenerated } from 'key-rotation-manager';
 
-export type TKeyGenerateDuration = { amount: number; unit: ManipulateType };
+export type TKeyGenerateDuration = { amount: number; unit: TKeyDurationUnit };
 
 export type TKeyServiceGetRotateKeyOptions = {
-  bytes: number;
+  bytes?: number;
   onGenerateDuration: TKeyGenerateDuration;
-  version?: number;
+  version?: string;
   renewOnExpire?: boolean;
 };
 
@@ -16,14 +16,15 @@ export type TKeyServiceGetRotateKey = {
 
 export type TKeyserviceGetOriginKeyResult = {
   key: string;
-  version: number;
+  version: string;
   id: string;
-  expiredKey: { id: string; originKey: string } | null;
+  hashBytes: number;
+  expiredKey: TKeyGenerated | null;
 };
 
 export type TKeyServiceGenerate = {
   type: string;
   useRotate?: boolean;
-  bytes: number;
+  bytes?: number;
   duration?: TKeyGenerateDuration;
 };

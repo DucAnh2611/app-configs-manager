@@ -1,12 +1,36 @@
 import dayjs, { Dayjs, ManipulateType } from 'dayjs';
+import { inspect } from 'util';
 import { APP_CONSTANTS } from '../constants';
 import { Validator } from './validator.util';
 
-export const when = (variable: unknown) => ({
-  and: (con2: unknown) => toBoolean(variable) && toBoolean(con2),
-  or: (con2: unknown) => toBoolean(variable) || toBoolean(con2),
-  value: () => toBoolean(variable),
-});
+export interface WhenChain {
+  and: (con2: unknown) => WhenChain;
+  or: (con2: unknown) => WhenChain;
+  truthy: () => boolean;
+  negative: () => WhenChain;
+  valueOf: () => boolean;
+  toString: () => string;
+}
+
+export const when = (variable: unknown): WhenChain => {
+  const boolValue = toBoolean(variable);
+
+  return {
+    and: (con2: unknown) => when(boolValue && toBoolean(con2)),
+    or: (con2: unknown) => when(boolValue || toBoolean(con2)),
+    truthy: () => boolValue,
+    negative: () => when(!boolValue),
+    valueOf: () => boolValue,
+    toString: () => String(boolValue),
+    [Symbol.toPrimitive]: (hint: string) => {
+      if (hint === 'number') return boolValue ? 1 : 0;
+      if (hint === 'string') return String(boolValue);
+      return boolValue;
+    },
+    [Symbol.toStringTag]: 'WhenChain',
+    [inspect.custom]: () => boolValue,
+  } as WhenChain;
+};
 
 export const is = when;
 export const check = when;
@@ -74,9 +98,9 @@ export const processConditions = <T>(data: T) => ({
 });
 
 export const isManipulateType = (value: unknown): value is ManipulateType => {
-  return when(typeof value === 'string').and(
-    (APP_CONSTANTS.DAYJS_MANIPULATE_UNITS as readonly string[]).includes(value as string)
-  );
+  return when(typeof value === 'string')
+    .and((APP_CONSTANTS.DAYJS_MANIPULATE_UNITS as readonly string[]).includes(value as string))
+    .truthy();
 };
 
 type TTransformTypes<T> = {
@@ -110,7 +134,7 @@ export const transformTypes = <CustomType extends unknown = unknown>(value: unkn
     dateUnit() {
       const validate = this.v.string().execute();
 
-      if (when(!isManipulateType(value)).or(!validate.success))
+      if (when(!isManipulateType(value)).or(!validate.success).truthy())
         throw new Error(`Cannot convert "${value}" to date-unit sytem`);
 
       return String(value) as TTransformTypes<CustomType>['date-unit'];
@@ -135,7 +159,11 @@ export const transformTypes = <CustomType extends unknown = unknown>(value: unkn
     boolean() {
       if (typeof value === 'string') {
         const lowerValue = value.toLowerCase();
-        if (check(lowerValue === 'false').or(lowerValue === '0'))
+        if (
+          check(lowerValue === 'false')
+            .or(lowerValue === '0')
+            .truthy()
+        )
           return false as TTransformTypes<CustomType>['boolean'];
       }
 
@@ -143,7 +171,11 @@ export const transformTypes = <CustomType extends unknown = unknown>(value: unkn
     }
 
     date() {
-      if (check(value !== undefined).and(value !== null)) {
+      if (
+        check(value !== undefined)
+          .and(value !== null)
+          .truthy()
+      ) {
         const parsedDate = dayjs(value as any);
         if (!parsedDate.isValid()) {
           throw new Error(`Cannot parse "${value}" as date`);

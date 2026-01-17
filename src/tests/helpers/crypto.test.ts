@@ -17,7 +17,7 @@ describe('Helper / Crypto', () => {
         renewOnExpire: true,
         onGenerateDuration: {
           amount: 30,
-          unit: 's',
+          unit: 'seconds',
         },
       },
     });
@@ -50,7 +50,7 @@ describe('Helper / Crypto', () => {
           renewOnExpire: true,
           onGenerateDuration: {
             amount: 30,
-            unit: 's',
+            unit: 'seconds',
           },
         },
       });
