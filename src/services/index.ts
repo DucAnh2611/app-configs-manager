@@ -36,7 +36,7 @@ export const initServices = () => {
   const queueService = new QueueService(getRedis());
   const cronService = new CronService(queueService);
 
-  const keyService = new KeyService(keyRepository, cacheService);
+  const keyService = new KeyService(keyRepository);
   const webhookHistoryService = new WebhookHistoryService(
     webhoookHistoryRepository,
     configRepository,

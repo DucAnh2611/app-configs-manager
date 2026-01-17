@@ -86,7 +86,9 @@ export interface IKey {
   type: string;
   hashed: string;
   hashBytes: number;
-  version: number;
+  path: string;
+  rotate: boolean;
+  version: string;
   status: EKeyStatus;
   durationAmount: number | null;
   durationUnit: ManipulateType | null;

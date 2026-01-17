@@ -40,11 +40,11 @@ export class QueueService {
     });
 
     const onCompleted = async (_job: Job) => {
-      this.printResultWorker(queueName, 'Completed');
+      this.printResultWorker(queueName, 'Completed', _job.data);
     };
 
     const onFailed = async (_job: Job | undefined, _err: Error) => {
-      this.printResultWorker(queueName, 'Failed');
+      this.printResultWorker(queueName, 'Failed', _job?.data);
     };
 
     worker.on('completed', onCompleted);
@@ -74,12 +74,13 @@ export class QueueService {
     }
   }
 
-  private async printResultWorker(queueName: string, status: string) {
+  private async printResultWorker(queueName: string, status: string, data: unknown) {
     logger.debug(
       {
         queueName,
         status,
         time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        data: data,
       },
       'Worker Result of',
       queueName

@@ -26,7 +26,11 @@ export class CronService {
     if (!expression || !register) return;
 
     const task = cron.schedule(expression, async () => {
-      await register();
+      try {
+        await register();
+      } catch (error) {
+        logger.error({ error, register: register.name }, 'Error registering job', job.name);
+      }
     });
 
     this.registry.set(job.name, { job, task });

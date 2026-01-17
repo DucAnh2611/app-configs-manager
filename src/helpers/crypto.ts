@@ -34,12 +34,18 @@ export const hash = (
 
 export const verify = (data: string, storedHash: string) => {
   const [salt, key] = storedHash.split(':');
+  if (!salt || !key) {
+    return false;
+  }
 
-  const hashedBuffer = Buffer.from(
-    scryptSync(data, salt, 64).toString(encodingStyle),
-    encodingStyle
-  );
+  const hashedHex = scryptSync(data, salt, 64).toString(encodingStyle);
+  console.log({ [data]: hashedHex, key });
+  const hashedBuffer = Buffer.from(hashedHex, encodingStyle);
   const keyBuffer = Buffer.from(key, encodingStyle);
+
+  if (hashedBuffer.length !== keyBuffer.length) {
+    return false;
+  }
 
   return timingSafeEqual(hashedBuffer, keyBuffer);
 };

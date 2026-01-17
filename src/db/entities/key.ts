@@ -25,13 +25,22 @@ export const KeyEntity = new EntitySchema<IKey>({
       type: 'integer',
       nullable: false,
     },
+    path: {
+      type: 'text',
+      nullable: true,
+      default: '',
+    },
+    rotate: {
+      type: 'bool',
+      default: false,
+    },
     status: {
       type: 'enum',
       enum: EKeyStatus,
       nullable: false,
     },
     version: {
-      type: 'integer',
+      type: 'text',
       default: -1,
     },
     durationAmount: {

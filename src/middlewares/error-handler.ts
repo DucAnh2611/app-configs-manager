@@ -15,6 +15,7 @@ export const ErrorHandler = () => {
       EResponseStatus.InternalServerError,
       EErrorCode.INTERNAL_SERVER
     );
+    console.log(error);
 
     if (error instanceof Exception) {
       response = error;

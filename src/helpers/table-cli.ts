@@ -232,7 +232,7 @@ const formatGrid = (rows: TGridRow[], options: TOptionsFormatGrid): string => {
           isNestedGrid = false,
           rowDataLength = width.data;
 
-        const factor = 2 / 3;
+        const factor = 1;
         const childGridWidth = Math.floor(options.width * factor);
 
         if (typeof rowData === 'object' && !!rowData?.isGrid) {

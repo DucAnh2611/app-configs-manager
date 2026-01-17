@@ -28,7 +28,7 @@ import {
   TConfigServiceUp,
   TConfigUseCache,
 } from '../types';
-import { ConfigExtractor, TTransformConfigParams } from '../utils';
+import { CETransform, ConfigExtractor, satisfy, TTransformConfigParams } from '../utils';
 import { AppService } from './app';
 import { CacheService } from './cache';
 import { KeyService } from './key';
@@ -98,21 +98,23 @@ export class ConfigService {
 
     const newVersion = await this.getNewVersion(dto.appId, dto.appNamespace);
 
-    const [{ hashBytes, key, version }] = await promiseAll(
+    const [{ key, version }] = await promiseAll(
       this.getSecretKey(dto.appId, dto.appNamespace),
       this.unusePreviousVersion(dto.appId, dto.appNamespace)
     );
+
+    const { configHashBytes } = await this.getSystemConfig({
+      configHashBytes: CETransform.primitives(
+        'number',
+        randNumber({ from: 32, to: 64, decimal: 0 })
+      ),
+    }).allowNull([]);
 
     const entity = this.configRepository.create({
       appId: dto.appId,
       namespace: dto.appNamespace,
       isUse: true,
-      configs: ConfigService.encryptConfig(
-        ConfigService.safeConfig(dto.configs),
-        version,
-        key,
-        hashBytes
-      ),
+      configs: ConfigService.encryptConfig(dto.configs, version, key, configHashBytes),
       version: newVersion,
     });
 
@@ -217,7 +219,7 @@ export class ConfigService {
 
   public getSystemConfig<T extends Record<string, TTransformConfigParams>>(configSchema: T) {
     return {
-      throwOnNull: async <K extends keyof T>(keys: K[]) => {
+      throwOnNull: async <K extends Array<keyof T>>(keys: K) => {
         const extractor = await this.getExtractor.bind(this)(
           COMMON_CONFIG.APP_CODE,
           COMMON_CONFIG.APP_ENV,
@@ -225,7 +227,7 @@ export class ConfigService {
         );
         return extractor.throwOnNull(keys);
       },
-      allowNull: async <K extends keyof T>(keys: K[]) => {
+      allowNull: async <K extends Array<keyof T>>(keys: K) => {
         const extractor = await this.getExtractor.bind(this)(
           COMMON_CONFIG.APP_CODE,
           COMMON_CONFIG.APP_ENV,
@@ -241,12 +243,26 @@ export class ConfigService {
     appNamespace: string,
     configSchema: T
   ) {
-    const config = await this.get({
-      appCode,
-      appNamespace,
-    });
+    let configs: TConfigRecords = {};
 
-    return new ConfigExtractor(ConfigService.safeConfig(config.configs)).select(configSchema);
+    try {
+      const config = await this.get({
+        appCode,
+        appNamespace,
+      });
+      configs = config.configs;
+    } catch (error) {
+      if (
+        satisfy(appCode === COMMON_CONFIG.APP_CODE)
+          .and(error instanceof Exception)
+          .and((error as Exception).resJson.error === EErrorCode.CONFIG_NOT_EXIST)
+          .truthy()
+      ) {
+        configs = {};
+      } else throw error;
+    }
+
+    return ConfigExtractor.from(configs).select(configSchema);
   }
 
   private async unusePreviousVersion(appId: string, namespace: string) {
@@ -275,7 +291,7 @@ export class ConfigService {
 
   public static encryptConfig(
     config: TConfigRecords,
-    keyVersion: number,
+    keyVersion: string,
     secret: string,
     bytes: number
   ) {
@@ -290,7 +306,7 @@ export class ConfigService {
     if (!keyVersion || !hashed)
       throw new Exception(EResponseStatus.InternalServerError, EErrorCode.INTERNAL_SERVER);
 
-    return Number(keyVersion);
+    return keyVersion;
   }
 
   public static getHashedTokenConfig(hashedConfig: string) {
@@ -306,7 +322,7 @@ export class ConfigService {
     return decrypt<TConfigRecords>(config, secret);
   }
 
-  private async getSecretKey(appId: string, namespace: string, version?: number) {
+  private async getSecretKey(appId: string, namespace: string, version?: string) {
     return this.keyService.getRotateKey({
       type: APP_CONSTANTS.FORMATS.keyType.config(appId, namespace),
       options: {
@@ -319,13 +335,6 @@ export class ConfigService {
         },
       },
     });
-  }
-
-  public static safeConfig(config: TConfigRecords) {
-    return {
-      ...APP_CONSTANTS.DEFAULT_CONFIGS,
-      ...config,
-    } as TConfigRecords;
   }
 
   private async equalCheck(appCode: string, appNamespace: string, configs: TConfigRecords) {
@@ -342,8 +351,8 @@ export class ConfigService {
     );
 
     return deepCompare(
-      this.decodeConfig(currentConfig, valueOrDefault(expiredKey?.originKey, key)).configs,
-      ConfigService.safeConfig(configs)
+      this.decodeConfig(currentConfig, valueOrDefault(expiredKey?.key, key)).configs,
+      configs
     );
   }
 
@@ -394,7 +403,7 @@ export class ConfigService {
       ConfigService.getSecretKeyVersion(config.configs)
     );
 
-    const result = this.decodeConfig(config, valueOrDefault(expiredKey?.originKey, key));
+    const result = this.decodeConfig(config, valueOrDefault(expiredKey?.key, key));
 
     if (config.isUse) await this.cacheService.set(cacheKey, result);
     else if (!config.isUse || !!config.deletedAt) await this.cacheService.delete(cacheKey);
@@ -427,7 +436,7 @@ export class ConfigService {
       ConfigService.getSecretKeyVersion(data.configs)
     );
 
-    const decodedConfig = this.decodeConfig(data, valueOrDefault(expiredKey?.originKey, key));
+    const decodedConfig = this.decodeConfig(data, valueOrDefault(expiredKey?.key, key));
 
     await this.queueService.addQueue(QUEUE_CONSTANTS.NAME.WEBHOOK_ON_CHANGE_CONFIG_TRIGGER, {
       appCode: appCode,

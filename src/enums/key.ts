@@ -3,8 +3,3 @@ export enum EKeyStatus {
   ACTIVE = 'ACTIVE',
   RETIRED = 'RETIRED',
 }
-
-export enum EKeyBytesMode {
-  FIXED = 'FIXED',
-  RANDOM = 'RANDOM',
-}

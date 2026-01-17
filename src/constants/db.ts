@@ -25,4 +25,8 @@ export const DB_TABLES_CONSTANTS = {
     HASH_MAX_BYTES: 128,
     TYPE_LENGTH: 50,
   },
+  SESSION: {
+    NAME: 'Session',
+    TABLE_NAME: 'sessions',
+  },
 };
